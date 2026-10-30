@@ -1,0 +1,420 @@
+:root {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e3efeb;
+  --muted: #a7beb4;
+  --line: #344a4b;
+  --navy: #0b191d;
+  --canvas: #101e22;
+  --white: #17292d;
+  --surface: #17292d;
+  --surface-raised: #21363a;
+  --surface-input: #112126;
+  --accent-soft: #183e38;
+  --text-accent: #7ae0c5;
+  color: var(--ink);
+  background: #0e1a1e;
+}
+
+/* Theme the product chrome; captured websites and exported evidence keep their own colors. */
+:root[data-theme="dark"]
+  :is(
+    .app-header,
+    .workspace-shell,
+    .address-toolbar,
+    .audit-panel,
+    .audit-panel-footer,
+    .workspace-tip,
+    .content-panel,
+    .profile-card,
+    .modal,
+    .device-dropdown
+  ) {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+:root[data-theme="dark"]
+  :is(
+    .address-input,
+    .profile-select,
+    .instructions,
+    .search-input,
+    .folder-input,
+    .custom-device-fields input,
+    .form-stack input,
+    .form-stack textarea,
+    .form-stack select,
+    .miro-export select,
+    .finding-filters select
+  ) {
+  background: var(--surface-input);
+  border-color: #4a6262;
+  color: var(--ink);
+}
+
+:root[data-theme="dark"]
+  :is(
+    .address-input input,
+    .address-input button,
+    .profile-select select,
+    .search-input input,
+    .folder-input input,
+    .modal-body input,
+    .modal-body textarea,
+    .modal-body select
+  ) {
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] :is(input, textarea)::placeholder {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"]
+  :is(
+    .workspace-topline,
+    .sync-toolbar,
+    .panel-heading,
+    .capture-row,
+    .list-toolbar,
+    .history-row,
+    .profile-card-footer,
+    .connection-check,
+    .finding-list,
+    .finding-row,
+    .methods,
+    .method-row,
+    .modal-header,
+    .preset-option,
+    .capture-result,
+    .export-option,
+    .evidence-preview,
+    .evidence-preview img
+  ) {
+  border-color: var(--line);
+}
+
+:root[data-theme="dark"]
+  :is(
+    .page-intro h1,
+    .panel-heading h2,
+    .field-label,
+    .section-heading h3,
+    .category-option,
+    .category-option > svg,
+    .category-option > span:nth-of-type(2),
+    .device-name,
+    .device-name > span,
+    .canvas-label,
+    .workspace-tip p strong,
+    .advanced-settings,
+    .ai-setting > div,
+    .capture-row,
+    .profile-card h2,
+    .empty-state h3,
+    .guide-main > h2,
+    .guide-step h3,
+    .guide-note h3,
+    .finding-title,
+    .methods > summary,
+    .method-row strong,
+    .modal-header h2,
+    .modal-body h3,
+    .modal-body .form-stack label,
+    .modal-body.form-stack label,
+    .modal-body .preset-option strong,
+    .export-option strong,
+    .evidence-preview,
+    .form-stack > label,
+    .form-row > label
+  ) {
+  color: var(--ink);
+}
+
+:root[data-theme="dark"]
+  :is(
+    .breadcrumbs,
+    .breadcrumbs strong,
+    .breadcrumbs svg,
+    .header-local,
+    .page-intro p,
+    .saved-indicator,
+    .workspace-tabs > button:not(.active),
+    .sync-label,
+    .capture-button,
+    .canvas-description,
+    .device-name small,
+    .device-foot,
+    .device-foot > button,
+    .device-scale,
+    .canvas-bottom,
+    .bottom-dot,
+    .workspace-tip p,
+    .workspace-disclaimer,
+    .version-label,
+    .app-footer,
+    .field-description,
+    .field-label > span,
+    .section-heading > span,
+    .scope-note,
+    .audit-panel .scope-note,
+    .local-footnote,
+    .zoom-label,
+    .history-main > span,
+    .history-main small,
+    .history-count,
+    .empty-state p,
+    .profile-card > p,
+    .settings-section > p,
+    .connection-check > span:last-of-type,
+    .guide-main > p,
+    .guide-step p,
+    .guide-note p,
+    .findings-heading p,
+    .summary-url,
+    .finding-meta,
+    .method-row p,
+    .method-state,
+    .comparison-bar,
+    .comparison-bar > span:last-child,
+    .progress-text,
+    .modal-header p,
+    .modal-body > p,
+    .preset-option small,
+    .custom-device-fields label,
+    .custom-device-fields > span,
+    .capture-result small,
+    .consent-check,
+    .export-option p,
+    .miro-export p,
+    .miro-preview,
+    .evidence-preview small,
+    .saved-set .button span,
+    .subtle,
+    .preview-loading,
+    .preview-loading span,
+    .finding-row > svg,
+    .mobile-menu svg
+  ) {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"]
+  :is(
+    .text-button,
+    .section-heading .text-button,
+    .workspace-tip > .text-button,
+    .canvas-top-right .text-button,
+    .workspace-disclaimer button,
+    .app-footer button,
+    .page-intro h1 span,
+    .workspace-tabs > button.active,
+    .device-column.active .device-foot,
+    .export-option:hover strong
+  ) {
+  color: var(--text-accent);
+}
+
+:root[data-theme="dark"] .button {
+  background: var(--surface-raised);
+  color: var(--ink);
+  border-color: #4a6262;
+  box-shadow: none;
+}
+
+:root[data-theme="dark"]
+  :is(
+    .button:hover,
+    .icon-button:hover,
+    .dropdown button:hover,
+    .finding-row:hover,
+    .preset-option:hover
+  ) {
+  background: #2b4447;
+  color: var(--ink);
+  border-color: #699086;
+}
+
+:root[data-theme="dark"] .icon-button {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"]
+  :is(.icon-button.is-active, .theme-toggle[aria-pressed="true"]) {
+  color: var(--text-accent);
+  background: var(--accent-soft);
+}
+
+:root[data-theme="dark"]
+  :is(
+    .user-avatar,
+    .count-label,
+    .tab-count,
+    .list-toolbar h2 span,
+    .version-label b
+  ) {
+  background: var(--surface-raised);
+  color: #bfd4c9;
+  border-color: var(--line);
+}
+
+:root[data-theme="dark"] .canvas-bottom {
+  background: var(--canvas);
+  border-color: var(--line);
+}
+
+:root[data-theme="dark"]
+  :is(
+    .sync-chip,
+    .audit-device,
+    .profile-tags span,
+    .example-badge,
+    .connection-badge
+  ) {
+  background: var(--surface-raised);
+  color: #bed2c8;
+  border-color: #4a6262;
+}
+
+:root[data-theme="dark"]
+  :is(.sync-chip.on, .audit-device.checked, .connection-badge.connected) {
+  background: var(--accent-soft);
+  color: var(--text-accent);
+  border-color: #3e7564;
+}
+
+:root[data-theme="dark"] .checkbox:not(.checked) {
+  border-color: #8ca69b;
+}
+
+:root[data-theme="dark"]
+  :is(
+    .toggle:not(.checked),
+    .capture-row > .toggle:not(.checked),
+    .ai-setting > .toggle:not(.checked)
+  ) {
+  background: #607871;
+}
+
+:root[data-theme="dark"]
+  :is(
+    .tip-icon,
+    .report-icon,
+    .profile-illustration,
+    .guide-step > span,
+    .export-option-icon,
+    .connection-empty code,
+    .guide-step code,
+    .settings-section code,
+    .miro-preview,
+    .guide-note,
+    .notice,
+    .audit-summary
+  ) {
+  background: #1b3432;
+  color: #b4d9c0;
+  border-color: #3c5b50;
+}
+
+:root[data-theme="dark"] :is(.notice strong, .notice p, .guide-note) {
+  color: #c1dfca;
+}
+
+:root[data-theme="dark"] .preset-option.added {
+  background: var(--surface-raised);
+}
+
+:root[data-theme="dark"] .modal-body .preset-option > svg {
+  color: var(--text-accent);
+}
+
+:root[data-theme="dark"] :is(.device-frame, .phone-frame) {
+  background: var(--surface-input);
+  border-color: #465e5d;
+  box-shadow: 0 5px 15px #00000028;
+}
+
+:root[data-theme="dark"]
+  :is(.device-column.active .device-frame, .device-column.active .phone-frame) {
+  border-color: #62bea6;
+  box-shadow: 0 5px 15px #00000028;
+}
+
+:root[data-theme="dark"] .phone-home {
+  background: #17292df5;
+}
+
+:root[data-theme="dark"] .phone-home span {
+  background: #b4cbc0;
+}
+
+:root[data-theme="dark"]
+  :is(
+    .out-of-sync,
+    .notice.warning,
+    .severity-mark,
+    .severity-badge,
+    .tiny-label,
+    .method-status,
+    .method-status.not_run,
+    .method-status.manual_required,
+    .run-status
+  ) {
+  background: #3b3321;
+  color: #f1d58b;
+  border-color: #796334;
+}
+
+:root[data-theme="dark"] .out-of-sync button {
+  color: #f1d58b;
+}
+
+:root[data-theme="dark"]
+  :is(
+    .severity-mark.high,
+    .severity-mark.critical,
+    .severity-badge.high,
+    .severity-badge.critical,
+    .method-status.failed,
+    .run-status.failed,
+    .run-status.cancelled
+  ) {
+  background: #432b28;
+  color: #ffb9a0;
+  border-color: #845448;
+}
+
+:root[data-theme="dark"]
+  :is(
+    .severity-mark.low,
+    .severity-mark.info,
+    .severity-badge.low,
+    .severity-badge.info,
+    .method-status.completed,
+    .run-status.completed
+  ) {
+  background: #203c30;
+  color: #abdfb1;
+  border-color: #477853;
+}
+
+:root[data-theme="dark"] .run-status.running {
+  background: #203b49;
+  color: #add9f0;
+}
+
+:root[data-theme="dark"] .danger {
+  color: #ffb9a0;
+}
+
+:root[data-theme="dark"] .modal-overlay {
+  background: #030b10ba;
+}
+
+:root[data-theme="dark"] .modal {
+  box-shadow: 0 20px 70px #00000066;
+}

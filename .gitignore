@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.context/
+output/
+*.local
+.env
+.env.*
+.DS_Store
+*.tsbuildinfo
