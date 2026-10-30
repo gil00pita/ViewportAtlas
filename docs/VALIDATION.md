@@ -1,19 +1,23 @@
 # Validation
 
-Validated locally on macOS arm64 with Node.js 26.3.1 and Playwright Chromium 156 on 29 October 2026.
+Validated locally on macOS arm64 with Node.js 26.3.1 and Playwright Chromium 156 on 30 October 2026.
 
 ## Automated checks
 
 | Check | Result |
 | --- | --- |
 | TypeScript and Vite production build | Passed; workspace and unpacked MV3 extension generated |
-| `npm test` | 27 passed, 0 failed |
-| `npm run test:extension` | 1 passed, 0 failed; actual packaged MV3 extension in Chrome for Testing |
+| `npm test` | 53 passed, 0 failed |
+| `npm run test:extension` | 2 passed, 0 failed; actual packaged MV3 extension in Chrome for Testing |
 | `npm audit` | 0 known dependency vulnerabilities |
 | Supplied SVG preservation | Root source and public SVG are byte-for-byte identical |
 | Chrome icons | Generated PNGs at 16, 32, 48, and 128px from the supplied SVG |
 
-The browser tests use real page loads, real screenshot files, real axe-core execution, and actual PDF generation. External Miro transport is stubbed only for operation-ledger unit tests. The native-host test exercises real stdin/stdout framing and authenticated loopback forwarding. The packaged extension test uses real `chrome.debugger` operations at 393 × 852 and 1440 × 900, then verifies synchronized query/hash navigation.
+The browser tests use real page loads, real screenshot files, real axe-core execution, and actual PDF generation. External Miro transport is stubbed only for operation-ledger unit tests. The native-host test exercises real stdin/stdout framing and authenticated loopback forwarding. The packaged extension test uses real `chrome.debugger` operations at 393 × 852 and 1440 × 900 CSS pixels, verifies 2× preview and PNG dimensions, checks masking and a 2dppx media query, then verifies synchronized query/hash navigation. It echoes captured snapshots at the native transport seam to inspect the real PNGs without modifying the user's native-host registration.
+
+Standalone capture tests verify 786 × 1704 viewport PNGs, 786 × 32000 truncated full-page PNGs, scaled crop and annotation placement, wide 2× captures, and continued support for archived 1× evidence. A saved example capture at `.context/capture-2x.png` was inspected visually at 786 × 1704 pixels. The earlier full-application workflow below used 1× captures.
+
+The PDF export browser test uses a real companion and a PDF containing a 2× PNG, larger than the native messaging response limit. It verifies default Original selection and preview, A4 selection and download, both actions after the companion stops, a valid downloaded PDF and filename, visible generation errors, cleanup of failed preview tabs, blocked-popup recovery, standalone downloads, and continued rejection of untrusted cross-site requests. Layout tests inspect PDF page sizes, full-resolution embedded images, aspect ratios, placement bounds, absence of clipping paths, very tall captures, long findings, unavailable screenshots, invalid layouts, and file-write errors. Both layouts were rasterized and inspected visually.
 
 Coverage includes embedding restrictions, unique semantic matches across different responsive IDs, independent navigation/click toggles, ambiguous/hidden targets, shared cookies, blocked password edits, source-only purchases, SPA routes, full-page truncation, masking pixel values, preserved open-details state, PNG dimensions, original-versus-annotated separation, crop alignment, schema rejection, credential URL redaction, manual-observation comparison exclusions, cancellation, API origin checks, hidden output folders, downloadable evidence/PDFs, persistence after service restart, and Miro duplicate prevention.
 
@@ -25,7 +29,7 @@ Verified through the actual React interface:
 2. Run an audit with AI disabled. All three captures and axe/metadata checks completed without failed checks. Lighthouse was explicitly not run; qualitative reviews were marked as requiring manual verification.
 3. Confirm saved PNG dimensions against file contents: 393 × 2154, 820 × 1822, and 1440 × 1772.
 4. Add a manual finding, mark it verified, save, and reopen export options.
-5. Download a real PDF and open the PDF-preview link. Rasterize the cover for visual inspection. Detailed screenshots are tiled into readable sections/columns instead of shrinking wide images to illegible text.
+5. Download a real PDF and open the PDF preview. Original now arranges full screenshots and findings on one canvas; A4 fits each full screenshot onto its own page without cropping. Rasterized examples of both layouts are under `.context/pdf-layout-fixture/`.
 6. Confirm visual zoom increases the displayed preview while the actual phone viewport remains 393 CSS pixels.
 7. Add/remove a preset and create/duplicate/delete profiles through the UI.
 8. Check the workspace at 1600px and 390px. Neither layout overflowed the page; the device canvas scrolls internally. axe-core reported zero violations in both tested workspace layouts and in the findings view. No page-level JavaScript exceptions were observed. This is not an accessibility compliance claim.
@@ -41,3 +45,11 @@ The full-page regression test verifies actual encoded PNG dimensions; it caught 
 - Native Messaging framing and Chrome instrumentation were verified separately. The user's real Chrome extension ID still needs registration with `npm run install:native`; a persistent native host was not installed into their Chrome profile during validation.
 - Confluence editable whiteboard objects and Lighthouse integration are unsupported, and remain explicitly labeled in the UI and documentation.
 - React Doctor's full static scan reports architectural and heuristic warnings, including the large workspace component, bounded array lookups, deliberate sequential browser/export work, captured-preview interactions, and custom focus-managed dialogs. It is not a clean static-analysis run. The actionable missing-effect dependencies and unchecked fetch response identified during review were fixed. No diagnostic suppressions were added; these remaining warnings are a maintenance limitation, not a passing check.
+
+Live-output checks cover pre-completion delivery, split UTF-8/JSONL events, opt-in enforcement, bounded logs, query-token redaction, cancellation, schema compatibility, and persisted history. The UI was exercised with a clearly labeled CLI fixture, including automatic Findings navigation and desktop/mobile/dark-mode output; a separate real Codex CLI connection check emitted seven live events and completed successfully.
+
+Finding-format checks cover all five priorities, required nonblank Issue/Impact/Recommendation text, complete and incomplete live JSON, literal HTML-like issue text, and schema-v1 compatibility. Browser verification checks the four-field order and Codex tag in saved and live lists, the existing Review finding action, and desktop/mobile/dark-mode layouts.
+
+Startup-warning regression tests reproduce duplicate managed `ultrafast_mode` notices, verify one informational entry per audit, and preserve unrelated policy warnings and fatal errors. A real installed Codex CLI check completed successfully with six events, no development-feature banner, and one informational compatibility notice replacing the two raw optional-speed warnings. The invocation retains host-skill isolation and suppresses the development banner only for the audit subprocess.
+
+Page-code checks exercise real rendered HTML and responsive CSS, secret/form/mask exclusion, unchanged inspected DOM, invalid selectors, inaccessible stylesheets, capture limits, prompt budgeting across 16 views, profile validation, and missing code from old extensions. The audit fixture records the actual CLI stdin and confirms HTML/CSS arrive when enabled, remain outside the prompt when disabled, and persist as local code snapshots. The packaged extension test captures real CDP code alongside 2× screenshots. UI checks verify the default-off option, keyboard control, conditional consent text, reset acknowledgment, and desktop/mobile/dark-mode layouts under `.context/page-code-*`.

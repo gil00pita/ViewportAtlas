@@ -1,21 +1,24 @@
 import PDFDocument from "pdfkit";
 import { createWriteStream } from "node:fs";
-import { access, rename } from "node:fs/promises";
+import { access, rename, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import sharp from "sharp";
+import { renderOriginalPdf } from "./pdf-original.mjs";
 const COLORS = {
   navy: "#071F46",
   teal: "#008B7E",
   muted: "#627672",
   line: "#E0E8E5",
 };
-export async function generatePdf(root, run) {
-  const output = join(root, "report.pdf");
+export async function generatePdf(root, run, layout = "original") {
+  if (!["original", "a4"].includes(layout)) throw new Error("Choose Original or A4 for the PDF layout.");
+  const output = join(root, layout === "a4" ? "report-a4.pdf" : "report.pdf");
   const doc = new PDFDocument({
     size: "A4",
     margin: 46,
     bufferPages: true,
+    autoFirstPage: false,
     info: { Title: `Viewport Atlas — ${run.title}`, Author: "Viewport Atlas" },
   });
   const temporary = join(root, `.report-${randomUUID()}.pdf`);
@@ -24,7 +27,6 @@ export async function generatePdf(root, run) {
     doc.rect(0, 0, doc.page.width, doc.page.height).fill("#FFFFFF");
     doc.restore();
   };
-  paintPage();
   doc.on("pageAdded", paintPage);
   const stream = createWriteStream(temporary);
   doc.pipe(stream);
@@ -33,6 +35,28 @@ export async function generatePdf(root, run) {
     stream.on("error", reject);
     doc.on("error", reject);
   });
+  // A write failure can arrive while screenshot metadata is still being read.
+  done.catch(() => {});
+  try {
+    if (layout === "original") await renderOriginalPdf(doc, root, run);
+    else {
+      doc.addPage();
+      await renderA4Pdf(doc, root, run);
+    }
+    doc.end();
+    await done;
+    await rename(temporary, output);
+    return output;
+  } catch (error) {
+    doc.destroy();
+    stream.destroy(error);
+    await done.catch(() => {});
+    await rm(temporary, { force: true });
+    throw error;
+  }
+}
+
+async function renderA4Pdf(doc, root, run) {
   const line = () => {
     doc.moveDown(0.5);
     doc.strokeColor(COLORS.line).moveTo(46, doc.y).lineTo(549, doc.y).stroke();
@@ -76,12 +100,15 @@ export async function generatePdf(root, run) {
   );
   if (run.error) text(`Run limitation: ${run.error}`, 10, "#A65B35");
   heading("Selected views");
-  for (const d of run.devices)
+  for (const d of run.devices) {
+    const scale =
+      run.screenshots.find((s) => s.deviceId === d.id)?.deviceScaleFactor ?? 1;
     text(
-      `${d.name} — ${d.width} x ${d.height} CSS pixels; device scale factor 1`,
+      `${d.name} — ${d.width} x ${d.height} CSS pixels; device scale factor ${scale}`,
       10,
       COLORS.muted,
     );
+  }
   if (run.comparison) {
     heading("Changes since the previous review");
     text(
@@ -99,10 +126,11 @@ export async function generatePdf(root, run) {
       .font("Helvetica-Bold")
       .fontSize(12)
       .fillColor(COLORS.navy)
-      .text(`[${f.severity.toUpperCase()}] ${f.title}`);
+      .text(`Priority: ${f.severity === "info" ? "info" : f.severity[0].toUpperCase() + f.severity.slice(1)}`);
+    text(`Issue: ${f.title}`, 12);
     doc.moveDown(0.3);
     text(
-      `${f.category} | ${f.source === "codex" ? "AI judgment" : f.source === "manual" ? "Manual observation" : `Automated check: ${f.source}`} | ${f.status} | confidence ${Math.round(f.confidence * 100)}%`,
+      `${f.category} | ${f.source === "codex" ? "Codex" : f.source === "manual" ? "Manual observation" : `Automated check: ${f.source}`} | ${f.status} | confidence ${Math.round(f.confidence * 100)}%`,
       8,
       COLORS.muted,
     );
@@ -148,44 +176,20 @@ export async function generatePdf(root, run) {
       "No active findings. This does not establish that the page has no defects or meets accessibility requirements.",
     );
   for (const screenshot of run.screenshots) {
+    const scale = screenshot.deviceScaleFactor ?? 1;
     doc.addPage();
     heading(
-      `${run.devices.find((d) => d.id === screenshot.deviceId)?.name || screenshot.deviceId} — full-page overview`,
+      `${run.devices.find((d) => d.id === screenshot.deviceId)?.name || screenshot.deviceId} - captured screen`,
     );
     text(
-      `${screenshot.width} x ${screenshot.height} pixels${screenshot.truncated ? " | TRUNCATED at capture limit" : ""}. Overview only; readable sections follow.`,
+      `${screenshot.width * scale} x ${screenshot.height * scale} PNG pixels at ${scale}x (${screenshot.width} x ${screenshot.height} CSS pixels)${screenshot.truncated ? " | TRUNCATED at capture limit" : ""}. Entire capture fitted to this page.`,
       9,
       COLORS.muted,
     );
     const path = join(root, "screenshots", `${screenshot.deviceId}.png`);
     try {
-      doc.image(path, 46, doc.y + 10, { fit: [500, 620] });
-      const info = await sharp(path).metadata();
-      // Wide desktop screenshots are tiled into readable columns, rather than scaled to illegible text.
-      const tileWidth = Math.min(info.width, 800);
-      const sectionHeight = Math.max(400, Math.floor(tileWidth * 1.15));
-      const step = tileWidth === info.width ? tileWidth : tileWidth - 32;
-      for (let top = 0; top < info.height; top += sectionHeight) {
-        const height = Math.min(sectionHeight, info.height - top);
-        for (let left = 0; left < info.width; left += step) {
-          const width = Math.min(tileWidth, info.width - left);
-          const buffer = await sharp(path)
-            .extract({ left, top, width, height })
-            .png()
-            .toBuffer();
-          doc.addPage();
-          heading(
-            `${run.devices.find((d) => d.id === screenshot.deviceId)?.name || screenshot.deviceId} - section ${Math.floor(top / sectionHeight) + 1}${info.width > tileWidth ? `, column ${Math.floor(left / step) + 1}` : ""}`,
-          );
-          text(
-            `Original screenshot x=${left}-${left + width}, y=${top}-${top + height} CSS pixels.`,
-            8,
-            COLORS.muted,
-          );
-          doc.image(buffer, 46, doc.y + 12, { fit: [500, 650] });
-          if (left + width >= info.width) break;
-        }
-      }
+      const imageY = doc.y + 12;
+      doc.image(path, 46, imageY, { fit: [doc.page.width - 92, doc.page.height - imageY - 64] });
     } catch {
       text("Screenshot is not available.", 10, COLORS.muted);
     }
@@ -226,8 +230,4 @@ export async function generatePdf(root, run) {
       );
     doc.restore();
   }
-  doc.end();
-  await done;
-  await rename(temporary, output);
-  return output;
 }

@@ -1,4 +1,6 @@
 import { browserEvidence } from "./interaction.mjs";
+import { CAPTURE_SCALE, MAX_HEIGHT } from "./capture-settings.mjs";
+import { collectPageCode } from "./page-code.mjs";
 const HOST = "com.viewportatlas.companion";
 let nativePort;
 const pending = new Map();
@@ -199,7 +201,7 @@ async function createViews(url, devices) {
         await command(tab.id, "Emulation.setDeviceMetricsOverride", {
           width: device.width,
           height: device.height,
-          deviceScaleFactor: 1,
+          deviceScaleFactor: CAPTURE_SCALE,
           mobile: device.mobile,
           screenWidth: device.width,
           screenHeight: device.height,
@@ -373,12 +375,13 @@ async function snapshots(devices, profile) {
     await evaluate(v.tabId, (p) => scrollTo(p.x, p.y), initial);
     const layout = await command(v.tabId, "Page.getLayoutMetrics");
     const height = profile.fullPage
-      ? Math.min(16000, Math.ceil(layout.cssContentSize.height))
+      ? Math.min(MAX_HEIGHT, Math.ceil(layout.cssContentSize.height))
       : d.height;
     const metadata = await evaluate(v.tabId, browserEvidence, {
       type: "metadata",
       masks: selectors,
     });
+    const pageCode = profile.ai && profile.includePageCode ? await evaluate(v.tabId, collectPageCode, { masks: selectors }) : undefined;
     const maskedText = await evaluate(
       v.tabId,
       (selectors) =>
@@ -473,16 +476,17 @@ async function snapshots(devices, profile) {
       png,
       width: d.width,
       height,
-      truncated: profile.fullPage && layout.cssContentSize.height > 16000,
+      truncated: profile.fullPage && layout.cssContentSize.height > MAX_HEIGHT,
       metadata,
+      ...(pageCode ? { pageCode } : {}),
       axe,
       bounds,
       conditions: {
         engine: "Chrome via chrome.debugger",
-        deviceScaleFactor: 1,
+        deviceScaleFactor: CAPTURE_SCALE,
         fullPage: profile.fullPage,
         maskSelectors: selectors,
-        maxHeight: 16000,
+        maxHeight: MAX_HEIGHT,
         initialScroll: initial,
         initialState: metadata.state,
         capturedAt: new Date().toISOString(),

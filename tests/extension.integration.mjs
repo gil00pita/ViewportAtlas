@@ -14,7 +14,7 @@ test("packaged Manifest V3 extension creates real CDP viewports and forwards sou
     res.setHeader("Content-Type", "text/html");
     res.setHeader("X-Frame-Options", "DENY");
     res.end(
-      '<!doctype html><html lang="en"><head><title>Extension fixture</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><h1>Extension fixture</h1><a href="/next?query=ok#hash">Next page</a><p data-sensitive>Private field</p></body></html>',
+      '<!doctype html><html lang="en"><head><title>Extension fixture</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;min-height:1200px;display:flow-root}p{position:absolute;left:20px;top:120px;width:100px;height:50px;margin:0}#density{position:absolute;left:150px;top:120px;width:40px;height:40px;background:red}@media(min-resolution:2dppx){#density{background:lime}}</style></head><body><h1>Extension fixture</h1><a href="/next?query=ok#hash">Next page</a><p data-sensitive>Private field</p><div id="density"></div></body></html>',
     );
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
@@ -62,8 +62,46 @@ test("packaged Manifest V3 extension creates real CDP viewports and forwards sou
       const info = await sharp(
         Buffer.from(view.image.split(",")[1], "base64"),
       ).metadata();
-      assert.equal(info.width, view.device.width);
-      assert.equal(info.height, view.device.height);
+      assert.equal(info.width, view.device.width * 2);
+      assert.equal(info.height, view.device.height * 2);
+    }
+    // Echo the real captures at the native transport seam; rendering is real Chrome.
+    await worker.evaluate(() => {
+      chrome.runtime.connectNative = () => {
+        let receive;
+        return {
+          onMessage: { addListener: (listener) => { receive = listener; } },
+          onDisconnect: { addListener: () => {} },
+          postMessage: (message) => receive({
+            id: message.id,
+            data: { snapshots: message.body.snapshots },
+          }),
+        };
+      };
+    });
+    for (const fullPage of [false, true]) {
+      const captured = await call("/capture", "POST", { devices, fullPage, ai: fullPage, includePageCode: true });
+      assert(!captured.error, captured.error);
+      for (const shot of captured.data.snapshots) {
+        const device = devices.find((d) => d.id === shot.deviceId);
+        const buffer = Buffer.from(shot.png, "base64");
+        const info = await sharp(buffer).metadata();
+        assert.equal(shot.conditions.deviceScaleFactor, 2);
+        if (fullPage) {
+          assert(shot.pageCode.html.includes("Extension fixture"));
+          assert(shot.pageCode.css.includes("min-resolution: 2dppx"));
+          assert(!shot.pageCode.html.includes("Private field"));
+        } else assert.equal(shot.pageCode, undefined, "Code must not be collected with AI disabled");
+        assert.equal(shot.width, device.width);
+        assert.equal(shot.height, fullPage ? 1200 : device.height);
+        assert.equal(info.width, device.width * 2);
+        assert.equal(info.height, shot.height * 2);
+        const pixel = (left, top) => sharp(buffer)
+          .extract({ left, top, width: 1, height: 1 })
+          .removeAlpha().raw().toBuffer();
+        assert.deepEqual([...(await pixel(60, 260))], [52, 78, 80]);
+        assert.deepEqual([...(await pixel(320, 260))], [0, 255, 0]);
+      }
     }
     const navigated = await call("/views/mobile/action", "POST", {
       action: {

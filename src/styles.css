@@ -2307,6 +2307,49 @@ h3 {
   accent-color: #4d9458;
   margin: 3px 0 0;
 }
+.pdf-layout-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0;
+  margin: 0 0 16px;
+  border: 0;
+}
+.pdf-layout-options legend {
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.pdf-layout-options label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.pdf-layout-options label:has(input:checked) {
+  border-color: var(--teal);
+}
+.pdf-layout-options input {
+  margin-top: 3px;
+  accent-color: var(--teal);
+}
+.pdf-layout-options strong,
+.pdf-layout-options label > span > span {
+  display: block;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+.pdf-layout-options label > span > span {
+  margin-top: 4px;
+}
+@media (max-width: 600px) {
+  .pdf-layout-options { grid-template-columns: minmax(0, 1fr); }
+}
 .export-option {
   display: flex;
   width: 100%;
@@ -4326,4 +4369,88 @@ h3 {
 }
 .methods > summary {
   color: #526d49;
+}
+
+/* Keep the workspace focused on its canvas, with actions in the tab bar. */
+.workspace-active .app-content {
+  height: 100dvh;
+}
+.page-content.page-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+}
+.page-workspace > .workspace-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.page-workspace .workspace-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.page-workspace .workspace-main {
+  min-height: 0;
+  overflow: auto;
+}
+.page-workspace .audit-panel,
+.page-workspace .audit-panel-body {
+  min-height: 0;
+}
+.page-workspace .audit-panel-body {
+  overflow-y: auto;
+}
+.page-workspace .audit-panel-footer {
+  flex-shrink: 0;
+}
+.page-workspace .workspace-topline {
+  height: auto;
+  min-height: 54px;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  flex-shrink: 0;
+}
+.page-workspace .workspace-tabs {
+  min-height: 52px;
+}
+.page-workspace .topline-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  padding: 8px 0;
+}
+.page-workspace .workspace-disclaimer {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-top: 1px solid var(--line);
+}
+@media (max-width: 600px) {
+  .page-workspace .workspace-body {
+    overflow: auto;
+  }
+  .page-workspace .workspace-main,
+  .page-workspace .audit-panel {
+    flex: none;
+    overflow: visible;
+  }
+  .page-workspace .audit-panel-body {
+    overflow: visible;
+  }
+  .page-workspace .workspace-topline {
+    padding: 0 12px;
+  }
+  .page-workspace .workspace-tabs {
+    min-height: 48px;
+  }
+  .page-workspace .topline-actions {
+    width: 100%;
+    justify-content: flex-end;
+    padding: 0 0 10px;
+  }
 }

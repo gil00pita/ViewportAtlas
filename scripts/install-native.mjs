@@ -20,7 +20,9 @@ const hostPath = join(state, "native-host");
 const quote = (s) => `'${s.replaceAll("'", "'\\''")}'`;
 await writeFile(
   hostPath,
-  `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(resolve("companion/native-host.mjs"))} "$@"\n`,
+  `#!/bin/sh
+exec ${quote(process.execPath)} ${quote(resolve("companion/native-host.mjs"))} "$@"
+`,
   { mode: 0o700 },
 );
 const dir =

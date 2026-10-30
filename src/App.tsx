@@ -58,6 +58,7 @@ import {
   GripVertical,
   Shield,
   Terminal,
+  Code2,
   Unplug,
   Menu,
   Send,
@@ -67,6 +68,8 @@ import {
   Sun,
 } from "lucide-react";
 import { api, assetUrl, downloadJson, extensionMode, health } from "./api";
+import { CodexReport } from "./CodexReport";
+import { exportPdfReport, type PdfLayout } from "./pdf-report";
 import {
   DEVICES,
   CATEGORIES,
@@ -214,6 +217,8 @@ function App() {
   const [runs, setRuns] = useState<Run[]>([]);
   const runId = run?.id;
   const [runBusy, setRunBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfLayout, setPdfLayout] = useState<PdfLayout>("original");
   const [severity, setSeverity] = useState("all");
   const [category, setCategory] = useState("all");
   const [findingDevice, setFindingDevice] = useState("all");
@@ -475,6 +480,10 @@ function App() {
         profile,
       });
       setRun(result);
+      if (profile.ai && profile.liveCodexOutput) {
+        setPage("workspace");
+        setTab("findings");
+      }
       notify("Audit started. Evidence is being captured locally.");
     } catch (e) {
       setRunBusy(false);
@@ -548,11 +557,16 @@ function App() {
       notify((e as Error).message);
     }
   };
-  const openRun = (r: Run) => {
-    setRun(r);
-    setRunBusy(r.status === "running");
-    setPage("workspace");
-    setTab("findings");
+  const openRun = async (r: Run) => {
+    try {
+      const detail = await api<Run>(`/runs/${r.id}`);
+      setRun(detail);
+      setRunBusy(detail.status === "running");
+      setPage("workspace");
+      setTab("findings");
+    } catch (error) {
+      notify((error as Error).message);
+    }
   };
   const filteredFindings =
     run?.findings.filter(
@@ -583,6 +597,17 @@ function App() {
       } catch (e) {
         notify((e as Error).message);
       }
+  };
+  const doPdfExport = async (preview: boolean) => {
+    if (!run || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      await exportPdfReport(run.id, preview, pdfLayout);
+    } catch (error) {
+      notify((error as Error).message);
+    } finally {
+      setPdfBusy(false);
+    }
   };
   const doMiroExport = async () => {
     if (!run || !exportBoard) return;
@@ -623,6 +648,8 @@ function App() {
             (p.outputFolder !== undefined &&
               typeof p.outputFolder !== "string") ||
             (p.ai !== undefined && typeof p.ai !== "boolean") ||
+            (p.liveCodexOutput !== undefined && typeof p.liveCodexOutput !== "boolean") ||
+            (p.includePageCode !== undefined && typeof p.includePageCode !== "boolean") ||
             (p.fullPage !== undefined && typeof p.fullPage !== "boolean") ||
             (p.exportPdf !== undefined && typeof p.exportPdf !== "boolean") ||
             (p.devices !== undefined &&
@@ -1067,6 +1094,37 @@ function App() {
               ? "Screenshots and page evidence are sent to Codex. Review before running."
               : "Optional AI insights, using your local Codex CLI."}
           </p>
+          {profile.ai && (
+            <>
+              <div className="ai-setting">
+                <div>
+                  <Code2 size={15} />
+                  <span>Include page code</span>
+                </div>
+                <Toggle
+                  label="Include page code in Codex analysis"
+                  checked={Boolean(profile.includePageCode)}
+                  onChange={() => {
+                    updateProfile({ includePageCode: !profile.includePageCode });
+                    setConsent(false);
+                  }}
+                />
+              </div>
+              <p className="field-description">Send sanitized HTML, readable CSS, and script URLs with screenshots.</p>
+              <div className="ai-setting">
+                <div>
+                  <Terminal size={15} />
+                  <span>Live Codex output</span>
+                </div>
+                <Toggle
+                  label="Show live Codex output"
+                  checked={Boolean(profile.liveCodexOutput)}
+                  onChange={() => updateProfile({ liveCodexOutput: !profile.liveCodexOutput })}
+                />
+              </div>
+              <p className="field-description">Show activity and messages while auditing. Saved with this audit.</p>
+            </>
+          )}
         </div>
         <div className="capture-row">
           <div>
@@ -1136,27 +1194,6 @@ function App() {
   );
   const renderWorkspace = () => (
     <>
-      <div className="page-intro">
-        <div>
-          <h1>
-            Every screen. One clear picture<span>.</span>
-          </h1>
-          <p>A fresh perspective on your website, at every size.</p>
-        </div>
-        <div className="intro-actions">
-          <button className="button" onClick={showExport}>
-            <Download size={15} />
-            Export report
-          </button>
-          <button
-            className="primary-button"
-            onClick={() => setModal("devices")}
-          >
-            <Plus size={17} />
-            Add view
-          </button>
-        </div>
-      </div>
       <div className="workspace-shell">
         <div className="workspace-topline">
           <div className="workspace-tabs">
@@ -1185,6 +1222,17 @@ function App() {
               <Check size={13} />
               Saved locally
             </span>
+            <button className="button" onClick={showExport}>
+              <Download size={15} />
+              Export report
+            </button>
+            <button
+              className="primary-button"
+              onClick={() => setModal("devices")}
+            >
+              <Plus size={17} />
+              Add view
+            </button>
             {!rightPanel && (
               <IconButton
                 label="Show audit settings"
@@ -1436,22 +1484,22 @@ function App() {
           </div>
           {rightPanel && renderSettingsPanel()}
         </div>
-      </div>
-      <div className="workspace-disclaimer">
-        <Shield size={12} />
-        <span>
-          {extensionMode
-            ? "Browser tabs share Chrome cookies and server state."
-            : "Standalone views share an isolated Chromium session."}{" "}
-          Passwords and payment fields are masked.{" "}
-          <button onClick={() => selectPage("guide")}>
-            How previews work
-            <ArrowUpRight size={11} />
-          </button>
-        </span>
-        <span className="version-label">
-          VIEWPORT ATLAS <b>v0.1</b>
-        </span>
+        <div className="workspace-disclaimer">
+          <Shield size={12} />
+          <span>
+            {extensionMode
+              ? "Browser tabs share Chrome cookies and server state."
+              : "Standalone views share an isolated Chromium session."}{" "}
+            Passwords and payment fields are masked.{" "}
+            <button onClick={() => selectPage("guide")}>
+              How previews work
+              <ArrowUpRight size={11} />
+            </button>
+          </span>
+          <span className="version-label">
+            VIEWPORT ATLAS <b>v0.1</b>
+          </span>
+        </div>
       </div>
     </>
   );
@@ -1515,6 +1563,11 @@ function App() {
               <span>Compared with previous review of this URL</span>
             </div>
           )}
+          <CodexReport
+            run={run}
+            onReviewFinding={(finding) => setSelectedFinding({ ...finding })}
+          />
+          <h3 className="all-findings-title">All findings</h3>
           <div className="finding-filters">
             <select
               aria-label="Filter by severity"
@@ -1582,7 +1635,7 @@ function App() {
                       <span>·</span>
                       <span>
                         {f.source === "codex"
-                          ? "AI judgment"
+                          ? <span className="codex-source-tag">Codex</span>
                           : f.source === "manual"
                             ? "Manual observation"
                             : `Automated · ${f.source}`}
@@ -2105,7 +2158,7 @@ function App() {
     </>
   );
   return (
-    <div className="app">
+    <div className={`app ${page === "workspace" ? "workspace-active" : ""}`}>
       {renderSidebar()}
       <div className="app-content" id="workspace">
         {renderHeader()}
@@ -2122,17 +2175,19 @@ function App() {
                     ? renderSettings()
                     : renderGuide()}
         </main>
-        <footer className="app-footer">
-          <span>Made for a better view of the web.</span>
-          <span>
-            <span className="status-dot online" />
-            All files stay local<span className="bottom-dot">·</span>
-            <button onClick={() => selectPage("guide")}>
-              Help & documentation
-              <ArrowUpRight size={11} />
-            </button>
-          </span>
-        </footer>
+        {page !== "workspace" && (
+          <footer className="app-footer">
+            <span>Made for a better view of the web.</span>
+            <span>
+              <span className="status-dot online" />
+              All files stay local<span className="bottom-dot">·</span>
+              <button onClick={() => selectPage("guide")}>
+                Help & documentation
+                <ArrowUpRight size={11} />
+              </button>
+            </span>
+          </footer>
+        )}
       </div>
       {toast && (
         <div className="toast" role="status">
@@ -2381,6 +2436,9 @@ function App() {
                             are masked. Page evidence is treated as untrusted
                             content.
                           </p>
+                          {profile.includePageCode && (
+                            <p>Page code is included: rendered HTML, readable CSS, and script URLs. Form values, masked regions, inline scripts, and event handlers are omitted. This is a limited frontend snapshot, not your original component or server source. Code snapshots are saved in the audit folder.</p>
+                          )}
                         </div>
                       </div>
                       <p>
@@ -2416,11 +2474,22 @@ function App() {
               )}
               {modal === "export" && run && (
                 <>
-                  <a
+                  <fieldset className="pdf-layout-options" disabled={pdfBusy}>
+                    <legend>PDF layout</legend>
+                    <label>
+                      <input type="radio" name="pdf-layout" value="original" checked={pdfLayout === "original"} onChange={() => setPdfLayout("original")} />
+                      <span><strong>Original</strong><span>All screens and findings on one canvas for whiteboards.</span></span>
+                    </label>
+                    <label>
+                      <input type="radio" name="pdf-layout" value="a4" checked={pdfLayout === "a4"} onChange={() => setPdfLayout("a4")} />
+                      <span><strong>A4</strong><span>Each full screenshot fits on its own page, without cropping.</span></span>
+                    </label>
+                  </fieldset>
+                  <button
                     className="export-option"
-                    href={assetUrl(`/api/runs/${run.id}/report.pdf`)}
-                    target="_blank"
-                    rel="noreferrer"
+                    disabled={pdfBusy}
+                    aria-busy={pdfBusy}
+                    onClick={() => doPdfExport(false)}
                   >
                     <span className="export-option-icon">
                       <FileText size={25} />
@@ -2428,12 +2497,11 @@ function App() {
                     <div>
                       <strong>PDF report</strong>
                       <p>
-                        Prioritized findings, evidence crops, methods, and
-                        limitations.
+                        {pdfLayout === "original" ? "All captured screens at their original proportions, with findings alongside." : "Prioritized findings and complete screenshots resized to fit A4 pages."}
                       </p>
                     </div>
                     <Download size={19} />
-                  </a>
+                  </button>
                   <button
                     className="export-option"
                     onClick={() =>
@@ -2475,16 +2543,20 @@ function App() {
                     </div>
                     <ArrowUpRight size={19} />
                   </button>
-                  <a
+                  <button
                     className="button"
                     style={{ marginTop: 18 }}
-                    href={assetUrl(`/api/runs/${run.id}/report.pdf?inline=1`)}
-                    target="_blank"
-                    rel="noreferrer"
+                    disabled={pdfBusy}
+                    aria-busy={pdfBusy}
+                    onClick={() => doPdfExport(true)}
                   >
-                    <Eye size={15} />
+                    {pdfBusy ? (
+                      <Loader2 className="spin" size={15} />
+                    ) : (
+                      <Eye size={15} />
+                    )}
                     Preview PDF
-                  </a>
+                  </button>
                   <div className="miro-export">
                     <div className="section-heading">
                       <h3>Export to Miro</h3>

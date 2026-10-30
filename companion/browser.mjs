@@ -1,6 +1,7 @@
 import { chromium } from "playwright";
 import { browserEvidence } from "./interaction.mjs";
 import { validateUrl, validateDevices } from "./core.mjs";
+import { CAPTURE_SCALE } from "./capture-settings.mjs";
 let browser;
 let context;
 const views = new Map();
@@ -11,7 +12,7 @@ export async function getBrowser() {
   if (!browser?.isConnected()) {
     browser = await chromium.launch({ headless: true });
     context = await browser.newContext({
-      deviceScaleFactor: 1,
+      deviceScaleFactor: CAPTURE_SCALE,
       serviceWorkers: "block",
     });
     await context.route(/^(file|chrome|devtools):/, (route) => route.abort());

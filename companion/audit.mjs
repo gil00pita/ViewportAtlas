@@ -13,6 +13,7 @@ import {
 import { prepareCapture, writeCapture, annotateFinding } from "./capture.mjs";
 import { validateFinding } from "./schema.mjs";
 import { runCodex } from "./codex.mjs";
+import { appendCodexOutput } from "./codex-output.mjs";
 import { generatePdf } from "./pdf.mjs";
 export function browserFindings(metadata, deviceId, screenshot) {
   const findings = [];
@@ -206,6 +207,7 @@ export async function performAudit(
             height: s.height,
             truncated: s.truncated,
             metadata: s.metadata,
+            ...(run.profile.ai && run.profile.includePageCode && s.pageCode ? { pageCode: s.pageCode } : {}),
             conditions: s.conditions,
           };
           axeResult = s.axe;
@@ -213,6 +215,20 @@ export async function performAudit(
         } else {
           page = getView(device.id).page;
           capture = await prepareCapture(page, run.profile, signal);
+        }
+        let pageCode;
+        if (run.profile.ai && run.profile.includePageCode) {
+          pageCode = capture.pageCode;
+          if (!pageCode || typeof pageCode.html !== "string" || typeof pageCode.css !== "string" ||
+            pageCode.html.length > 32000 || pageCode.css.length > 16000 || !Array.isArray(pageCode.scriptUrls) ||
+            pageCode.scriptUrls.length > 12 || pageCode.scriptUrls.some((url) => typeof url !== "string" || url.length > 512) ||
+            typeof pageCode.scope !== "string" || pageCode.scope.length > 1000) {
+            throw new Error("Page code was requested but a valid snapshot was not captured. Reload the extension and retry.");
+          }
+          await mkdir(join(root, "page-code"), { recursive: true });
+          await atomicJson(join(root, "page-code", `${device.id}.json`), pageCode);
+          run.checks.push({ name: "Page code capture", status: "completed", deviceId: device.id,
+            detail: `Rendered HTML and readable CSS captured; ${pageCode.unavailableStylesheets || 0} stylesheet(s) unavailable.${pageCode.truncated ? " Code snapshot truncated at the capture limit." : ""} Form values, masked regions, inline scripts, and event handlers omitted.` });
         }
         const screenshot = await writeCapture(root, run.id, device.id, capture);
         run.screenshots.push(screenshot);
@@ -223,7 +239,11 @@ export async function performAudit(
         evidence.push({
           deviceId: device.id,
           screenshot: screenshot.path,
+          deviceScaleFactor: screenshot.deviceScaleFactor,
+          width: screenshot.width,
+          height: screenshot.height,
           metadata: meta,
+          ...(pageCode ? { pageCode } : {}),
         });
         aiImages.push(join(root, "screenshots", `${device.id}.png`));
         if (run.title === "Website review" && meta.title)
@@ -232,7 +252,7 @@ export async function performAudit(
           name: "Screenshot capture",
           status: "completed",
           deviceId: device.id,
-          detail: `${capture.width} × ${capture.height} PNG. ${capture.truncated ? "TRUNCATED at 16,000 CSS pixels." : "Capture within configured limits."} Sensitive regions masked. Fonts bounded to 2s; lazy-load preparation bounded to 16 steps; animations disabled. Interactive state recorded in metadata.json.`,
+          detail: `${screenshot.pixelWidth} × ${screenshot.pixelHeight} PNG pixels at ${screenshot.deviceScaleFactor}× (${capture.width} × ${capture.height} CSS pixels). ${capture.truncated ? "TRUNCATED at 16,000 CSS pixels." : "Capture within configured limits."} Sensitive regions masked. Fonts bounded to 2s; lazy-load preparation bounded to 16 steps; animations disabled. Interactive state recorded in metadata.json.`,
         });
         if (run.profile.categories.includes("Accessibility")) {
           await progress(`Checking accessibility on ${device.name}…`);
@@ -366,8 +386,19 @@ export async function performAudit(
       });
     if (run.profile.ai && run.screenshots.length) {
       await progress("Analyzing masked evidence with Codex…");
+      let outputSave = Promise.resolve();
+      let lastOutputSave = 0;
+      const onOutput = (event) => {
+        if (!appendCodexOutput(run, event)) return;
+        onProgress(run);
+        if (Date.now() - lastOutputSave >= 1000) {
+          lastOutputSave = Date.now();
+          outputSave = saveRun(root, run, { pdf: false });
+          outputSave.catch(() => {});
+        }
+      };
       try {
-        const result = await runCodex(run, evidence, aiImages, signal);
+        const result = await runCodex(run, evidence, aiImages, signal, onOutput);
         for (const f of result.findings) {
           if (
             !run.profile.categories.includes(f.category) ||
@@ -406,6 +437,8 @@ export async function performAudit(
           status: "failed",
           detail: e.message,
         });
+      } finally {
+        await outputSave;
       }
     } else
       run.checks.push({

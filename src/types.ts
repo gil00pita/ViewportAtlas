@@ -16,6 +16,8 @@ export type Profile = {
   categories: Category[];
   devices: string[];
   ai: boolean;
+  liveCodexOutput?: boolean;
+  includePageCode?: boolean;
   fullPage: boolean;
   masks: string;
   outputFolder: string;
@@ -52,6 +54,12 @@ export type View = {
   outOfSync?: string;
   device: Device;
 };
+export type CodexOutputEntry = {
+  id: string;
+  at: string;
+  type: "status" | "message" | "warning" | "error";
+  message: string;
+};
 export type Run = {
   schemaVersion: 1;
   id: string;
@@ -69,11 +77,16 @@ export type Run = {
     path: string;
     width: number;
     height: number;
+    pixelWidth?: number;
+    pixelHeight?: number;
+    deviceScaleFactor?: number;
     truncated: boolean;
   }[];
   outputFolder?: string;
   error?: string;
   summary?: string;
+  codexOutput?: CodexOutputEntry[];
+  codexOutputTruncated?: boolean;
   comparison?: { new: string[]; resolved: string[]; recurring: string[] };
 };
 export type Health = {
@@ -104,6 +117,8 @@ const base = {
   categories: CATEGORIES,
   devices: ["iphone-15", "ipad-air", "desktop"],
   ai: false,
+  liveCodexOutput: false,
+  includePageCode: false,
   fullPage: true,
   masks: 'input[type="password"], input[autocomplete*="cc-"], [data-sensitive]',
   outputFolder: "",

@@ -5,5 +5,7 @@ await cp("dist/web", "dist/extension", { recursive: true });
 await cp("extension", "dist/extension", { recursive: true });
 await cp("public/icons", "dist/extension/icons", { recursive: true });
 await cp("companion/interaction.mjs", "dist/extension/interaction.mjs");
+await cp("companion/capture-settings.mjs", "dist/extension/capture-settings.mjs");
+await cp("companion/page-code.mjs", "dist/extension/page-code.mjs");
 await cp("node_modules/axe-core/axe.min.js", "dist/extension/axe.min.js");
 console.log("Built unpacked Chrome extension at dist/extension.");
