@@ -1,0 +1,9 @@
+import { cp, mkdir } from "node:fs/promises";
+await import("./icons.mjs");
+await mkdir("dist/extension", { recursive: true });
+await cp("dist/web", "dist/extension", { recursive: true });
+await cp("extension", "dist/extension", { recursive: true });
+await cp("public/icons", "dist/extension/icons", { recursive: true });
+await cp("companion/interaction.mjs", "dist/extension/interaction.mjs");
+await cp("node_modules/axe-core/axe.min.js", "dist/extension/axe.min.js");
+console.log("Built unpacked Chrome extension at dist/extension.");
