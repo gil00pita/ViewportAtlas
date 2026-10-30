@@ -68,6 +68,7 @@ import {
 } from "lucide-react";
 import { api, assetUrl, downloadJson, extensionMode, health } from "./api";
 import { CodexReport } from "./CodexReport";
+import { exportPdfReport } from "./pdf-report";
 import {
   DEVICES,
   CATEGORIES,
@@ -215,6 +216,7 @@ function App() {
   const [runs, setRuns] = useState<Run[]>([]);
   const runId = run?.id;
   const [runBusy, setRunBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [severity, setSeverity] = useState("all");
   const [category, setCategory] = useState("all");
   const [findingDevice, setFindingDevice] = useState("all");
@@ -584,6 +586,17 @@ function App() {
       } catch (e) {
         notify((e as Error).message);
       }
+  };
+  const doPdfExport = async (preview: boolean) => {
+    if (!run || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      await exportPdfReport(run.id, preview);
+    } catch (error) {
+      notify((error as Error).message);
+    } finally {
+      setPdfBusy(false);
+    }
   };
   const doMiroExport = async () => {
     if (!run || !exportBoard) return;
@@ -2422,11 +2435,11 @@ function App() {
               )}
               {modal === "export" && run && (
                 <>
-                  <a
+                  <button
                     className="export-option"
-                    href={assetUrl(`/api/runs/${run.id}/report.pdf`)}
-                    target="_blank"
-                    rel="noreferrer"
+                    disabled={pdfBusy}
+                    aria-busy={pdfBusy}
+                    onClick={() => doPdfExport(false)}
                   >
                     <span className="export-option-icon">
                       <FileText size={25} />
@@ -2439,7 +2452,7 @@ function App() {
                       </p>
                     </div>
                     <Download size={19} />
-                  </a>
+                  </button>
                   <button
                     className="export-option"
                     onClick={() =>
@@ -2481,16 +2494,20 @@ function App() {
                     </div>
                     <ArrowUpRight size={19} />
                   </button>
-                  <a
+                  <button
                     className="button"
                     style={{ marginTop: 18 }}
-                    href={assetUrl(`/api/runs/${run.id}/report.pdf?inline=1`)}
-                    target="_blank"
-                    rel="noreferrer"
+                    disabled={pdfBusy}
+                    aria-busy={pdfBusy}
+                    onClick={() => doPdfExport(true)}
                   >
-                    <Eye size={15} />
+                    {pdfBusy ? (
+                      <Loader2 className="spin" size={15} />
+                    ) : (
+                      <Eye size={15} />
+                    )}
                     Preview PDF
-                  </a>
+                  </button>
                   <div className="miro-export">
                     <div className="section-heading">
                       <h3>Export to Miro</h3>
