@@ -67,6 +67,7 @@ import {
   Sun,
 } from "lucide-react";
 import { api, assetUrl, downloadJson, extensionMode, health } from "./api";
+import { CodexReport } from "./CodexReport";
 import {
   DEVICES,
   CATEGORIES,
@@ -1515,6 +1516,11 @@ function App() {
               <span>Compared with previous review of this URL</span>
             </div>
           )}
+          <CodexReport
+            run={run}
+            onReviewFinding={(finding) => setSelectedFinding({ ...finding })}
+          />
+          <h3 className="all-findings-title">All findings</h3>
           <div className="finding-filters">
             <select
               aria-label="Filter by severity"

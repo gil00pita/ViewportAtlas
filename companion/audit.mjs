@@ -223,6 +223,9 @@ export async function performAudit(
         evidence.push({
           deviceId: device.id,
           screenshot: screenshot.path,
+          deviceScaleFactor: screenshot.deviceScaleFactor,
+          width: screenshot.width,
+          height: screenshot.height,
           metadata: meta,
         });
         aiImages.push(join(root, "screenshots", `${device.id}.png`));
@@ -232,7 +235,7 @@ export async function performAudit(
           name: "Screenshot capture",
           status: "completed",
           deviceId: device.id,
-          detail: `${capture.width} × ${capture.height} PNG. ${capture.truncated ? "TRUNCATED at 16,000 CSS pixels." : "Capture within configured limits."} Sensitive regions masked. Fonts bounded to 2s; lazy-load preparation bounded to 16 steps; animations disabled. Interactive state recorded in metadata.json.`,
+          detail: `${screenshot.pixelWidth} × ${screenshot.pixelHeight} PNG pixels at ${screenshot.deviceScaleFactor}× (${capture.width} × ${capture.height} CSS pixels). ${capture.truncated ? "TRUNCATED at 16,000 CSS pixels." : "Capture within configured limits."} Sensitive regions masked. Fonts bounded to 2s; lazy-load preparation bounded to 16 steps; animations disabled. Interactive state recorded in metadata.json.`,
         });
         if (run.profile.categories.includes("Accessibility")) {
           await progress(`Checking accessibility on ${device.name}…`);

@@ -20,7 +20,7 @@ The executable finding schema is [companion/schema.mjs](../companion/schema.mjs)
 | `status` | unverified, verified, dismissed |
 | `rule` | Optional tool rule ID |
 
-Evidence bounds are `{x, y, width, height}` in CSS pixels relative to the screenshot's origin. Device scale factor is fixed at 1, preserving direct pixel mapping. Full-page screenshots use document coordinates; viewport-only captures subtract the recorded scroll origin. Regions beyond truncated captures are not cropped. Original bounds are retained; crop padding is 18px, clamped to screenshot edges.
+Evidence bounds are `{x, y, width, height}` in CSS pixels relative to the screenshot's origin. New captures render at device scale factor 2. Screenshot entries retain `width` and `height` in CSS pixels and add `pixelWidth`, `pixelHeight`, and `deviceScaleFactor`; PNG dimensions equal CSS dimensions multiplied by the scale. Missing scale metadata on older evidence means 1×. Full-page screenshots use document coordinates; viewport-only captures subtract the recorded scroll origin. Regions beyond truncated captures are not cropped. Original bounds are retained; crop padding is 18 CSS pixels, clamped to screenshot edges. Crop extraction and annotation rendering multiply CSS coordinates by the screenshot's scale.
 
 Asset references have the form `/evidence/<run-id>/<kind>/<file>.png` and map to the same relative paths within the run folder. For offline tooling, strip `/evidence/<run-id>/` and resolve against that run's directory. The original image stays in `screenshots/`; annotations and focused crops are separate assets. AI-supplied screenshot references are replaced with the matching run-owned asset before saving.
 

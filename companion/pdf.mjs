@@ -76,12 +76,15 @@ export async function generatePdf(root, run) {
   );
   if (run.error) text(`Run limitation: ${run.error}`, 10, "#A65B35");
   heading("Selected views");
-  for (const d of run.devices)
+  for (const d of run.devices) {
+    const scale =
+      run.screenshots.find((s) => s.deviceId === d.id)?.deviceScaleFactor ?? 1;
     text(
-      `${d.name} — ${d.width} x ${d.height} CSS pixels; device scale factor 1`,
+      `${d.name} — ${d.width} x ${d.height} CSS pixels; device scale factor ${scale}`,
       10,
       COLORS.muted,
     );
+  }
   if (run.comparison) {
     heading("Changes since the previous review");
     text(
@@ -148,12 +151,13 @@ export async function generatePdf(root, run) {
       "No active findings. This does not establish that the page has no defects or meets accessibility requirements.",
     );
   for (const screenshot of run.screenshots) {
+    const scale = screenshot.deviceScaleFactor ?? 1;
     doc.addPage();
     heading(
       `${run.devices.find((d) => d.id === screenshot.deviceId)?.name || screenshot.deviceId} — full-page overview`,
     );
     text(
-      `${screenshot.width} x ${screenshot.height} pixels${screenshot.truncated ? " | TRUNCATED at capture limit" : ""}. Overview only; readable sections follow.`,
+      `${screenshot.width * scale} x ${screenshot.height * scale} PNG pixels at ${scale}x (${screenshot.width} x ${screenshot.height} CSS pixels)${screenshot.truncated ? " | TRUNCATED at capture limit" : ""}. Overview only; readable sections follow.`,
       9,
       COLORS.muted,
     );
@@ -162,9 +166,9 @@ export async function generatePdf(root, run) {
       doc.image(path, 46, doc.y + 10, { fit: [500, 620] });
       const info = await sharp(path).metadata();
       // Wide desktop screenshots are tiled into readable columns, rather than scaled to illegible text.
-      const tileWidth = Math.min(info.width, 800);
-      const sectionHeight = Math.max(400, Math.floor(tileWidth * 1.15));
-      const step = tileWidth === info.width ? tileWidth : tileWidth - 32;
+      const tileWidth = Math.min(info.width, 800 * scale);
+      const sectionHeight = Math.max(400 * scale, Math.floor(tileWidth * 1.15));
+      const step = tileWidth === info.width ? tileWidth : tileWidth - 32 * scale;
       for (let top = 0; top < info.height; top += sectionHeight) {
         const height = Math.min(sectionHeight, info.height - top);
         for (let left = 0; left < info.width; left += step) {
@@ -178,7 +182,7 @@ export async function generatePdf(root, run) {
             `${run.devices.find((d) => d.id === screenshot.deviceId)?.name || screenshot.deviceId} - section ${Math.floor(top / sectionHeight) + 1}${info.width > tileWidth ? `, column ${Math.floor(left / step) + 1}` : ""}`,
           );
           text(
-            `Original screenshot x=${left}-${left + width}, y=${top}-${top + height} CSS pixels.`,
+            `Original screenshot x=${left / scale}-${(left + width) / scale}, y=${top / scale}-${(top + height) / scale} CSS pixels.`,
             8,
             COLORS.muted,
           );

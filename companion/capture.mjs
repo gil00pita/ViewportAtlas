@@ -2,7 +2,9 @@ import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import sharp from "sharp";
 import { browserEvidence } from "./interaction.mjs";
-export const MAX_HEIGHT = 16000;
+import { CAPTURE_SCALE, MAX_HEIGHT } from "./capture-settings.mjs";
+export { MAX_HEIGHT } from "./capture-settings.mjs";
+const MAX_CAPTURE_PIXELS = 3840 * MAX_HEIGHT * CAPTURE_SCALE ** 2;
 export const DEFAULT_MASKS =
   'input[type="password"],input[type="file"],input[autocomplete*="cc-"],input[autocomplete*="password"],[data-sensitive]';
 export async function prepareCapture(
@@ -23,6 +25,7 @@ export async function prepareCapture(
     x: scrollX,
     y: scrollY,
     height: document.documentElement.scrollHeight,
+    deviceScaleFactor: devicePixelRatio,
   }));
   if (fullPage) {
     for (let i = 0; i < 16; i++) {
@@ -43,10 +46,11 @@ export async function prepareCapture(
     () => document.documentElement.scrollHeight,
   );
   const vp = page.viewportSize();
-  // Bound page clip rather than screenshot resizing, so CSS coordinate mappings stay 1:1.
+  // Bound the clip in CSS pixels and retain the renderer's native pixel density.
   const captureHeight = fullPage ? Math.min(height, MAX_HEIGHT) : vp.height;
   const buffer = await page.screenshot({
     type: "png",
+    scale: "device",
     animations: "disabled",
     caret: "hide",
     mask: [page.locator(selectors)],
@@ -83,7 +87,7 @@ export async function prepareCapture(
     metadata,
     conditions: {
       engine: "Chromium",
-      deviceScaleFactor: 1,
+      deviceScaleFactor: state.deviceScaleFactor,
       fullPage,
       maxHeight: MAX_HEIGHT,
       maskSelectors: selectors,
@@ -96,15 +100,19 @@ export async function prepareCapture(
   };
 }
 export async function writeCapture(root, runId, deviceId, capture) {
+  const scale = capture.conditions?.deviceScaleFactor ?? 1;
   const info = await sharp(capture.buffer, {
-    limitInputPixels: 64000000,
+    limitInputPixels: MAX_CAPTURE_PIXELS,
   }).metadata();
   if (
     info.format !== "png" ||
-    info.width !== capture.width ||
-    info.height !== capture.height ||
-    info.width > 3840 ||
-    info.height > 16000
+    ![1, CAPTURE_SCALE].includes(scale) ||
+    !Number.isInteger(capture.width) ||
+    !Number.isInteger(capture.height) ||
+    info.width !== capture.width * scale ||
+    info.height !== capture.height * scale ||
+    capture.width > 3840 ||
+    capture.height > MAX_HEIGHT
   )
     throw new Error(
       "Screenshot format or dimensions do not match capture evidence.",
@@ -117,6 +125,9 @@ export async function writeCapture(root, runId, deviceId, capture) {
     path: `/evidence/${runId}/screenshots/${deviceId}.png`,
     width: capture.width,
     height: capture.height,
+    pixelWidth: info.width,
+    pixelHeight: info.height,
+    deviceScaleFactor: scale,
     truncated: capture.truncated,
   };
 }
@@ -151,8 +162,12 @@ export async function annotateFinding(root, run, finding, evidence, index) {
   if (!evidence.bounds) return;
   const capture = run.screenshots.find((s) => s.deviceId === evidence.deviceId);
   if (!capture) return;
-  const region = clipBounds(evidence.bounds, capture.width, capture.height);
-  if (!region) return;
+  const cssRegion = clipBounds(evidence.bounds, capture.width, capture.height);
+  if (!cssRegion) return;
+  const scale = capture.deviceScaleFactor ?? 1;
+  const region = Object.fromEntries(
+    Object.entries(cssRegion).map(([key, value]) => [key, value * scale]),
+  );
   await mkdir(join(root, "crops"), { recursive: true });
   await mkdir(join(root, "annotated"), { recursive: true });
   const original = join(root, "screenshots", `${evidence.deviceId}.png`);
@@ -163,7 +178,7 @@ export async function annotateFinding(root, run, finding, evidence, index) {
     .toFile(join(root, "crops", `${basename}.png`));
   const b = evidence.bounds;
   const overlay = Buffer.from(
-    `<svg width="${capture.width}" height="${capture.height}"><rect x="${Math.max(1, b.x)}" y="${Math.max(1, b.y)}" width="${Math.min(b.width, capture.width - b.x - 1)}" height="${Math.min(b.height, capture.height - b.y - 1)}" rx="3" fill="none" stroke="#FF704B" stroke-width="3"/><rect x="${Math.max(0, b.x)}" y="${Math.max(0, b.y - 23)}" width="${Math.min(360, capture.width)}" height="22" fill="#071F46"/><text x="${Math.max(0, b.x) + 6}" y="${Math.max(15, b.y - 8)}" fill="white" font-family="Arial" font-size="12">${esc(finding.title.slice(0, 45))}</text></svg>`,
+    `<svg width="${capture.width * scale}" height="${capture.height * scale}" viewBox="0 0 ${capture.width} ${capture.height}"><rect x="${Math.max(1, b.x)}" y="${Math.max(1, b.y)}" width="${Math.min(b.width, capture.width - b.x - 1)}" height="${Math.min(b.height, capture.height - b.y - 1)}" rx="3" fill="none" stroke="#FF704B" stroke-width="3"/><rect x="${Math.max(0, b.x)}" y="${Math.max(0, b.y - 23)}" width="${Math.min(360, capture.width)}" height="22" fill="#071F46"/><text x="${Math.max(0, b.x) + 6}" y="${Math.max(15, b.y - 8)}" fill="white" font-family="Arial" font-size="12">${esc(finding.title.slice(0, 45))}</text></svg>`,
   );
   await sharp(original)
     .composite([{ input: overlay }])

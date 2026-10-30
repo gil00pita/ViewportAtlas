@@ -48,6 +48,7 @@ test("embedding-restricted pages render at exact independent viewports", async (
   for (const d of devices) {
     const p = getView(d.id).page;
     assert.equal(await p.evaluate(() => innerWidth), d.width);
+    assert.equal(await p.evaluate(() => devicePixelRatio), 2);
     assert.equal(await p.title(), "Test fixture");
   }
   assert.equal((await listViews()).length, 2);
@@ -148,14 +149,17 @@ test("full-page capture bounds lazy loading, masks pixels, preserves open state,
   assert.equal(capture.width, 393);
   assert.equal(capture.height, 16000);
   const pngInfo = await sharp(capture.buffer).metadata();
-  assert.equal(pngInfo.height, capture.height);
-  assert.equal(pngInfo.width, capture.width);
-  await writeCapture(root, "full-page-regression", "phone", capture);
+  assert.equal(pngInfo.height, capture.height * 2);
+  assert.equal(pngInfo.width, capture.width * 2);
+  const saved = await writeCapture(root, "full-page-regression", "phone", capture);
+  assert.equal(saved.deviceScaleFactor, 2);
+  assert.equal(saved.pixelWidth, 786);
+  assert.equal(saved.pixelHeight, 32000);
   assert.equal(capture.truncated, true);
   assert(capture.metadata.state.openDetails.includes("details"));
   assert(!JSON.stringify(capture.metadata).includes("TOP SECRET"));
   const pixel = await sharp(capture.buffer)
-    .extract({ left: 30, top: 130, width: 1, height: 1 })
+    .extract({ left: 60, top: 260, width: 1, height: 1 })
     .removeAlpha()
     .raw()
     .toBuffer();
@@ -183,10 +187,50 @@ test("annotation crops retain screenshot coordinate alignment and original image
   await annotateFinding(runRoot, run, { id: "f1", title: "Evidence" }, ev, 0);
   assert(ev.crop.endsWith("/crops/f1-0.png"));
   const crop = await sharp(join(runRoot, "crops/f1-0.png")).metadata();
-  assert.equal(crop.width, 136);
+  assert.equal(crop.width, 272);
+  assert.equal(crop.height, 172);
+  const annotation = join(runRoot, "annotated/f1-0.png");
+  const annotatedInfo = await sharp(annotation).metadata();
+  assert.equal(annotatedInfo.width, 786);
+  assert.equal(annotatedInfo.height, 1704);
+  const border = await sharp(annotation)
+    .extract({ left: 40, top: 280, width: 1, height: 1 })
+    .removeAlpha()
+    .raw()
+    .toBuffer();
+  assert.deepEqual([...border], [255, 112, 75]);
   assert.deepEqual(
     await readFile(join(runRoot, "screenshots/phone.png")),
     original,
+  );
+});
+test("legacy 1x evidence retains its original crop mapping", async () => {
+  const runRoot = join(root, "legacy-annotations");
+  const buffer = await sharp({
+    create: { width: 393, height: 852, channels: 3, background: "#ffffff" },
+  }).png().toBuffer();
+  const saved = await writeCapture(runRoot, "legacy", "phone", {
+    buffer, width: 393, height: 852, truncated: false,
+  });
+  assert.equal(saved.deviceScaleFactor, 1);
+  const run = { id: "legacy", screenshots: [{ deviceId: "phone", width: 393, height: 852 }] };
+  const ev = { deviceId: "phone", bounds: { x: 20, y: 120, width: 100, height: 50 } };
+  await annotateFinding(runRoot, run, { id: "old", title: "Legacy evidence" }, ev, 0);
+  const info = await sharp(join(runRoot, "crops/old-0.png")).metadata();
+  assert.equal(info.width, 136);
+  assert.equal(info.height, 86);
+});
+test("2x capture validation accepts wide viewports and rejects incorrect density", async () => {
+  const buffer = await sharp({
+    create: { width: 7680, height: 640, channels: 3, background: "#ffffff" },
+  }).png().toBuffer();
+  const capture = { buffer, width: 3840, height: 320, conditions: { deviceScaleFactor: 2 } };
+  const saved = await writeCapture(join(root, "wide"), "wide", "desktop", capture);
+  assert.equal(saved.pixelWidth, 7680);
+  assert.equal(saved.width, 3840);
+  await assert.rejects(
+    writeCapture(root, "invalid", "desktop", { ...capture, conditions: { deviceScaleFactor: 1 } }),
+    /dimensions do not match/,
   );
 });
 test("real axe checks, evidence export, and readable-section PDF complete without Codex", async () => {

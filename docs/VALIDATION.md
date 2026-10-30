@@ -1,19 +1,21 @@
 # Validation
 
-Validated locally on macOS arm64 with Node.js 26.3.1 and Playwright Chromium 156 on 29 October 2026.
+Validated locally on macOS arm64 with Node.js 26.3.1 and Playwright Chromium 156 on 30 October 2026.
 
 ## Automated checks
 
 | Check | Result |
 | --- | --- |
 | TypeScript and Vite production build | Passed; workspace and unpacked MV3 extension generated |
-| `npm test` | 27 passed, 0 failed |
+| `npm test` | 34 passed, 0 failed |
 | `npm run test:extension` | 1 passed, 0 failed; actual packaged MV3 extension in Chrome for Testing |
 | `npm audit` | 0 known dependency vulnerabilities |
 | Supplied SVG preservation | Root source and public SVG are byte-for-byte identical |
 | Chrome icons | Generated PNGs at 16, 32, 48, and 128px from the supplied SVG |
 
-The browser tests use real page loads, real screenshot files, real axe-core execution, and actual PDF generation. External Miro transport is stubbed only for operation-ledger unit tests. The native-host test exercises real stdin/stdout framing and authenticated loopback forwarding. The packaged extension test uses real `chrome.debugger` operations at 393 × 852 and 1440 × 900, then verifies synchronized query/hash navigation.
+The browser tests use real page loads, real screenshot files, real axe-core execution, and actual PDF generation. External Miro transport is stubbed only for operation-ledger unit tests. The native-host test exercises real stdin/stdout framing and authenticated loopback forwarding. The packaged extension test uses real `chrome.debugger` operations at 393 × 852 and 1440 × 900 CSS pixels, verifies 2× preview and PNG dimensions, checks masking and a 2dppx media query, then verifies synchronized query/hash navigation. It echoes captured snapshots at the native transport seam to inspect the real PNGs without modifying the user's native-host registration.
+
+Standalone capture tests verify 786 × 1704 viewport PNGs, 786 × 32000 truncated full-page PNGs, scaled crop and annotation placement, wide 2× captures, and continued support for archived 1× evidence. A saved example capture at `.context/capture-2x.png` was inspected visually at 786 × 1704 pixels. The earlier full-application workflow below used 1× captures.
 
 Coverage includes embedding restrictions, unique semantic matches across different responsive IDs, independent navigation/click toggles, ambiguous/hidden targets, shared cookies, blocked password edits, source-only purchases, SPA routes, full-page truncation, masking pixel values, preserved open-details state, PNG dimensions, original-versus-annotated separation, crop alignment, schema rejection, credential URL redaction, manual-observation comparison exclusions, cancellation, API origin checks, hidden output folders, downloadable evidence/PDFs, persistence after service restart, and Miro duplicate prevention.
 

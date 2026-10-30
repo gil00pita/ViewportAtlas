@@ -1,0 +1,112 @@
+.codex-report {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.codex-report-header,
+.codex-report-finding-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.codex-report-header h3 {
+  font-size: 18px;
+  line-height: 1.4;
+  font-weight: 750;
+}
+.codex-report-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.codex-report-status.failed {
+  color: #ae472e;
+}
+.codex-report-summary,
+.codex-report-message,
+.codex-report-finding dd {
+  max-width: 72ch;
+  font-size: 14px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+.codex-report-summary,
+.codex-report-message {
+  margin-top: 16px;
+}
+.codex-report-message p + p {
+  margin-top: 12px;
+}
+.codex-report-note,
+.codex-report-meta {
+  color: #536969;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.codex-report-note {
+  margin-top: 12px;
+}
+.codex-report-findings {
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.codex-report-finding {
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+.codex-report-findings li + li {
+  margin-top: 24px;
+}
+.codex-report-finding h4 {
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 700;
+}
+.codex-report-meta {
+  margin-top: 8px;
+}
+.codex-report-finding dt {
+  margin-top: 16px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  font-weight: 750;
+}
+.codex-report-finding dd {
+  margin: 0;
+}
+.codex-report-finding .text-button {
+  margin-top: 16px;
+  font-size: 12px;
+}
+.all-findings-title {
+  margin-top: 24px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+:root[data-theme="dark"] :is(.codex-report-note, .codex-report-meta) {
+  color: var(--muted);
+}
+:root[data-theme="dark"] .codex-report-status.failed {
+  color: #ffb29d;
+}
+@media (max-width: 600px) {
+  .codex-report {
+    padding: 16px;
+  }
+  .codex-report-header,
+  .codex-report-finding-heading {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}

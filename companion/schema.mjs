@@ -21,6 +21,7 @@ export const findingSchema = {
   properties: {
     id: { type: "string", minLength: 1, maxLength: 120 },
     category: {
+      type: "string",
       enum: [
         "Accessibility",
         "Performance",
@@ -30,7 +31,10 @@ export const findingSchema = {
       ],
     },
     title: { type: "string", maxLength: 500 },
-    severity: { enum: ["critical", "high", "medium", "low", "info"] },
+    severity: {
+      type: "string",
+      enum: ["critical", "high", "medium", "low", "info"],
+    },
     url: { type: "string" },
     devices: { type: "array", items: { type: "string" }, minItems: 1 },
     evidence: {
@@ -51,9 +55,9 @@ export const findingSchema = {
     },
     impact: { type: "string", maxLength: 10000 },
     recommendation: { type: "string", maxLength: 10000 },
-    source: { enum: ["axe-core", "browser", "codex", "manual"] },
+    source: { type: "string", enum: ["axe-core", "browser", "codex", "manual"] },
     confidence: { type: "number", minimum: 0, maximum: 1 },
-    status: { enum: ["unverified", "verified", "dismissed"] },
+    status: { type: "string", enum: ["unverified", "verified", "dismissed"] },
     rule: { type: "string" },
   },
   required: [
@@ -74,8 +78,8 @@ export const findingSchema = {
 // All properties are required for Codex's strict structured-output contract.
 const aiFinding = structuredClone(findingSchema);
 delete aiFinding.properties.rule;
-aiFinding.properties.source = { const: "codex" };
-aiFinding.properties.status = { const: "unverified" };
+aiFinding.properties.source = { type: "string", const: "codex" };
+aiFinding.properties.status = { type: "string", const: "unverified" };
 aiFinding.properties.evidence.items.properties = {
   deviceId: { type: "string" },
   screenshot: { type: "string" },

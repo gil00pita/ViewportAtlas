@@ -69,6 +69,9 @@ export type Run = {
     path: string;
     width: number;
     height: number;
+    pixelWidth?: number;
+    pixelHeight?: number;
+    deviceScaleFactor?: number;
     truncated: boolean;
   }[];
   outputFolder?: string;
