@@ -66,4 +66,6 @@ test("Codex passes the selected model explicitly while retaining isolation", () 
   assert(args.includes("--ignore-user-config"));
   assert(args.includes("mcp_servers={}"));
   assert(args.includes("read-only"));
+  assert(args.includes("skip_host_skill_discovery"));
+  assert(args.includes("suppress_unstable_features_warning=true"));
 });

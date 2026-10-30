@@ -50,7 +50,8 @@ Use the sun/moon button in the top bar to switch between light and dark themes. 
 - Follower clicks are limited to navigation and recognizable UI controls. Purchases, deletions, submissions, unclassified actions, passwords, payments, and file inputs are not repeated. These protections are conservative heuristics, not a transactional isolation boundary. Browser views may share server-side state.
 - Choose a built-in profile, independently select categories and audit devices, and optionally write custom instructions. Six editable profiles cover general review, UX heuristics, accessibility, responsive layout, commerce, and landing pages. Create, duplicate, rename, delete, import, and export profiles in **Audit profiles**.
 - **Capture** saves masked PNGs locally. **Run audit** captures selected views, executes checks, and retains original evidence. Default audit scope is the current page, with no crawl. Cancellation retains partial results. Failed and skipped checks appear in the methods list.
-- Read the inline **Codex report** on the Findings tab for its summary, AI observations, impacts, and recommendations. Running, failed, and disabled analysis remain visible there. **Review finding** opens the existing evidence and editing controls. Review all findings using category, severity, device, and verification filters; dismiss, merge, or add manual observations.
+- Read the inline **Codex report** on the Findings tab. Each observation is a list item tagged **Codex**, with **Priority** (Critical, High, Medium, Low, or info), **Issue**, **Impact**, and **Recommendation**, in that order. Structured findings in live output use the same format. Running, failed, and disabled analysis remain visible there. **Review finding** opens the existing evidence and editing controls. Review all findings using category, severity, device, and verification filters; dismiss, merge, or add manual observations.
+- In **Export report**, choose a **PDF layout** for preview or download. **Original** is selected by default: one canvas arranges all captured screens side by side at their original proportions, with findings and methods alongside, ready to import into a whiteboard. **A4** includes the report and puts each complete screenshot on its own page, scaled to fit without cropping. Both keep the full-resolution raster images embedded. PDF imports may flatten text depending on the whiteboard; use Export to Miro for editable board objects.
 - **Export report** downloads or previews a PDF, exports structured JSON, and opens the complete output folder. PDF actions reconnect the companion in Chrome mode and fetch the report before opening a local preview or download; export failures appear in the workspace. Allow pop-ups for PDF previews, or use the download action. **Audit history** compares stable findings against the preceding completed review of the same URL, categories, and viewport set.
 
 ## What actually runs
@@ -75,9 +76,13 @@ codex login
 codex login status
 ```
 
-Enable **Codex analysis** in audit settings. The app explains the exact evidence sent and requires acknowledgment before running. The companion checks installation and authentication, invokes non-interactive `codex exec` with a read-only sandbox, disables shell tools, plugins, hooks, connectors, browser actions, and web search, ignores inherited user configuration, and validates structured output against a versioned schema. It uses an isolated temporary working directory and passes the prompt through stdin with `shell: false`.
+Enable **Codex analysis** in audit settings. The app explains the exact evidence sent and requires acknowledgment before running. Optionally enable **Live Codex output** beneath it; this is off by default and opens Findings during the audit. CLI activity, public messages, warnings, and errors appear as they arrive. The CLI may deliver its structured answer near the end rather than streaming each word. Scroll up to read earlier output or choose **Follow output** to resume following it. Output is saved with the audit and can be expanded later in Audit history. The companion checks installation and authentication, invokes non-interactive `codex exec` with a read-only sandbox, disables shell tools, plugins, hooks, connectors, browser actions, and web search, ignores inherited user configuration, and validates structured output against a versioned schema. It uses an isolated temporary working directory and passes the prompt through stdin with `shell: false`.
 
 Page text is explicitly untrusted evidence. CLI configuration, not page content, establishes the tool restrictions. No Codex desktop API or UI automation is used. Compatibility errors are reported as failed checks, including the underlying error from Codex's JSON output. AI findings remain unverified. AI processing may occur online; local orchestration does not imply offline inference. Model selection uses `ATLAS_CODEX_MODEL` first, then a simple top-level `model` setting in your Codex `config.toml`, then the CLI default. Other user configuration remains disabled. Choose a model available to your CLI account. AI invocations time out after three minutes and support cancellation.
+
+Atlas suppresses the known development-feature banner for its isolated audit subprocess using Codex's [documented warning setting](https://learn.chatgpt.com/docs/config-file/config-reference). It keeps host-skill discovery disabled and does not edit your Codex configuration. If the CLI reports an ignored enterprise `ultrafast_mode` requirement, live output shows one informational compatibility notice per audit. Other policy warnings and fatal errors remain visible.
+
+Enable **Include page code** beneath Codex analysis to send rendered HTML, matching readable CSS, and script URLs alongside screenshots. It defaults to off; changing it resets the pre-audit acknowledgment. Form values, masked subtrees, data attributes, inline scripts, event handlers, embedded documents, and generated CSS content are omitted. URLs in code omit credentials, queries, and fragments. This captures the current document, not React/Vue components, server code, JavaScript bundles, iframe contents, or shadow trees. Cross-origin stylesheets may be unreadable and are counted as unavailable. Snapshots are limited to 32,000 HTML characters, 16,000 CSS characters, and 2,500 visited DOM nodes per view; the Codex prompt allocates a smaller shared budget fairly across views when needed and marks truncation. Saved sanitized snapshots are under `page-code/<device-id>.json`. No code is collected when AI is disabled or this option is off. Reload the Chrome extension after updating to enable this capture capability.
 
 ## Evidence, masks, and local storage
 
@@ -89,6 +94,7 @@ Default output: `~/Documents/Viewport Atlas`. Choose and remember another destin
   screenshots/<device-id>.png
   annotated/<finding-id>-<index>.png
   crops/<finding-id>-<index>.png
+  page-code/<device-id>.json  # when Include page code is enabled
   findings.json
   profile.json
   metadata.json
@@ -98,7 +104,9 @@ Default output: `~/Documents/Viewport Atlas`. Choose and remember another destin
   miro-export.json          # after a Miro export attempt
 ```
 
-PDFs include prioritized findings, readable crops, cross-device screenshot overviews, successive readable screenshot sections, and methods and limitations. Screenshot overviews are explicitly labeled as overviews.
+`report.pdf` uses the Original canvas layout. Choosing A4 also creates `report-a4.pdf`; it does not replace the Original PDF. Very large Original canvases scale uniformly to stay within common PDF page-size limits, while retaining all embedded screenshot pixels.
+
+Both PDF layouts include prioritized findings and methods and limitations. Original places intact screens and findings together on one canvas. A4 keeps readable evidence crops in the report and fits each intact screen onto its own page.
 
 Captures render lossless PNGs at 2× pixel density in standalone and Chrome extension modes. A 393 × 852 CSS viewport produces a 786 × 1704 PNG; the browser renders at this density without upscaling an existing image. Full-page captures wait for fonts for at most two seconds, prepare lazy content in at most 16 scroll steps, and stop at 16,000 CSS pixels (32,000 PNG pixels). Truncation is recorded. Capture-time scroll and open details/tab state are retained as metadata. Original masked screenshots stay unchanged when annotations and crops are generated. Bounds remain in CSS pixels and are multiplied by the recorded device scale factor for crops and annotations. Screenshot annotation geometry and asset references remain editable in JSON. Older 1× evidence remains supported.
 

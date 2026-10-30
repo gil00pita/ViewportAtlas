@@ -1,6 +1,8 @@
 import { api, assetUrl, downloadBlob, extensionMode } from "./api";
 
-export async function exportPdfReport(runId: string, preview: boolean) {
+export type PdfLayout = "original" | "a4";
+
+export async function exportPdfReport(runId: string, preview: boolean, layout: PdfLayout = "original") {
   // Reserve the preview during the click, before asynchronous PDF generation.
   const tab = preview ? window.open("about:blank", "_blank") : null;
   if (preview && !tab) {
@@ -18,7 +20,7 @@ export async function exportPdfReport(runId: string, preview: boolean) {
     // Native messaging starts a stopped companion before the binary HTTP request.
     if (extensionMode) await api("/health");
     const response = await fetch(
-      assetUrl(`/api/runs/${encodeURIComponent(runId)}/report.pdf?inline=1`),
+      assetUrl(`/api/runs/${encodeURIComponent(runId)}/report.pdf?inline=1&layout=${layout}`),
     );
     if (!response.ok) {
       let message = `PDF export failed (HTTP ${response.status}).`;
@@ -46,7 +48,7 @@ export async function exportPdfReport(runId: string, preview: boolean) {
         }
       }, 1000);
     } else {
-      downloadBlob(`Viewport-Atlas-${runId}.pdf`, blob);
+      downloadBlob(`Viewport-Atlas-${runId}${layout === "a4" ? "-A4" : ""}.pdf`, blob);
     }
   } catch (error) {
     tab?.close();

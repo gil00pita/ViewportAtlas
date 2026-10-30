@@ -2,6 +2,7 @@ import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import sharp from "sharp";
 import { browserEvidence } from "./interaction.mjs";
+import { collectPageCode } from "./page-code.mjs";
 import { CAPTURE_SCALE, MAX_HEIGHT } from "./capture-settings.mjs";
 export { MAX_HEIGHT } from "./capture-settings.mjs";
 const MAX_CAPTURE_PIXELS = 3840 * MAX_HEIGHT * CAPTURE_SCALE ** 2;
@@ -9,7 +10,7 @@ export const DEFAULT_MASKS =
   'input[type="password"],input[type="file"],input[autocomplete*="cc-"],input[autocomplete*="password"],[data-sensitive]';
 export async function prepareCapture(
   page,
-  { fullPage = true, masks = "" } = {},
+  { fullPage = true, masks = "", ai = false, includePageCode = false } = {},
   signal,
 ) {
   const selectors = [DEFAULT_MASKS, masks].filter(Boolean).join(",");
@@ -67,6 +68,7 @@ export async function prepareCapture(
     type: "metadata",
     masks: selectors,
   });
+  const pageCode = ai && includePageCode ? await page.evaluate(collectPageCode, { masks: selectors }) : undefined;
   // Text in masked regions is not collected; metadata headings/links are independently minimized.
   const maskedText = await page
     .locator(selectors)
@@ -85,6 +87,7 @@ export async function prepareCapture(
     height: captureHeight,
     truncated: fullPage && height > MAX_HEIGHT,
     metadata,
+    ...(pageCode ? { pageCode } : {}),
     conditions: {
       engine: "Chromium",
       deviceScaleFactor: state.deviceScaleFactor,

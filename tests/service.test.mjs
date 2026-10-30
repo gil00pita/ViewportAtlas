@@ -93,6 +93,13 @@ test("HTTP audit lifecycle serves PDF and evidence from a hidden destination, bl
         .toString(),
       "%PDF-",
     );
+    const a4 = await fetch(`${base}/api/runs/${run.id}/report.pdf?layout=a4`);
+    assert.equal(a4.status, 200);
+    assert(a4.headers.get("Content-Disposition").includes("-A4.pdf"));
+    assert(Buffer.from(await a4.arrayBuffer()).includes(Buffer.from("/MediaBox [0 0 595.28 841.89]")));
+    const invalidLayout = await fetch(`${base}/api/runs/${run.id}/report.pdf?layout=letter`);
+    assert.equal(invalidLayout.status, 400);
+    assert.match((await invalidLayout.json()).error, /Choose Original or A4/);
     const image = await fetch(base + run.screenshots[0].path);
     assert.equal(image.status, 200);
     assert.equal(image.headers.get("Content-Type"), "image/png");

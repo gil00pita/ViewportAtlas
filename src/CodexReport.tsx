@@ -1,5 +1,7 @@
 import { ArrowUpRight, Loader2 } from "lucide-react";
 import type { Finding, Run } from "./types";
+import { CodexLiveOutput } from "./CodexLiveOutput";
+import { CodexFindingFields } from "./CodexFindingFields";
 import "./codex-report.css";
 
 export function CodexReport({
@@ -26,6 +28,7 @@ export function CodexReport({
           {status}
         </span>
       </header>
+      {run.profile.liveCodexOutput && <CodexLiveOutput key={run.id} run={run} />}
       {completed ? (
         <>
           {run.summary && <p className="codex-report-summary">{run.summary}</p>}
@@ -37,19 +40,10 @@ export function CodexReport({
               {findings.map((finding) => (
                 <li key={finding.id}>
                   <article className="codex-report-finding">
-                    <div className="codex-report-finding-heading">
-                      <h4>{finding.title}</h4>
-                      <span className={`severity-badge ${finding.severity}`}>{finding.severity}</span>
-                    </div>
+                    <CodexFindingFields finding={finding} />
                     <p className="codex-report-meta">
                       {finding.category} · {finding.devices.map((id) => devices.get(id) || id).join(", ")} · {finding.status}
                     </p>
-                    <dl>
-                      <dt>Impact</dt>
-                      <dd>{finding.impact}</dd>
-                      <dt>Recommendation</dt>
-                      <dd>{finding.recommendation}</dd>
-                    </dl>
                     <button
                       className="text-button"
                       aria-label={`Review finding: ${finding.title}`}

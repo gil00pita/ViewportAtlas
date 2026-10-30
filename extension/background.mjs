@@ -1,5 +1,6 @@
 import { browserEvidence } from "./interaction.mjs";
 import { CAPTURE_SCALE, MAX_HEIGHT } from "./capture-settings.mjs";
+import { collectPageCode } from "./page-code.mjs";
 const HOST = "com.viewportatlas.companion";
 let nativePort;
 const pending = new Map();
@@ -380,6 +381,7 @@ async function snapshots(devices, profile) {
       type: "metadata",
       masks: selectors,
     });
+    const pageCode = profile.ai && profile.includePageCode ? await evaluate(v.tabId, collectPageCode, { masks: selectors }) : undefined;
     const maskedText = await evaluate(
       v.tabId,
       (selectors) =>
@@ -476,6 +478,7 @@ async function snapshots(devices, profile) {
       height,
       truncated: profile.fullPage && layout.cssContentSize.height > MAX_HEIGHT,
       metadata,
+      ...(pageCode ? { pageCode } : {}),
       axe,
       bounds,
       conditions: {

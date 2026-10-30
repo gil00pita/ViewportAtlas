@@ -7,8 +7,7 @@
   color: var(--ink);
   overflow-wrap: anywhere;
 }
-.codex-report-header,
-.codex-report-finding-heading {
+.codex-report-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -33,7 +32,7 @@
 }
 .codex-report-summary,
 .codex-report-message,
-.codex-report-finding dd {
+.codex-finding-fields dd {
   max-width: 72ch;
   font-size: 14px;
   line-height: 1.8;
@@ -67,23 +66,57 @@
 .codex-report-findings li + li {
   margin-top: 24px;
 }
-.codex-report-finding h4 {
-  font-size: 15px;
-  line-height: 1.6;
-  font-weight: 700;
-}
 .codex-report-meta {
   margin-top: 8px;
 }
-.codex-report-finding dt {
-  margin-top: 16px;
-  margin-bottom: 4px;
+.codex-source-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+.codex-finding-fields {
+  margin: 12px 0 0;
+}
+.codex-finding-fields > div {
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 12px;
+}
+.codex-finding-fields > div + div {
+  margin-top: 8px;
+}
+.codex-finding-fields dt {
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.8;
   font-weight: 750;
 }
-.codex-report-finding dd {
+.codex-finding-fields dd {
+  min-width: 0;
   margin: 0;
+}
+.codex-finding-issue {
+  font-weight: 700;
+}
+.codex-finding-fields .severity-badge {
+  font-size: 12px;
+  text-transform: none;
+}
+.codex-live-findings {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.codex-live-findings > li + li {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 .codex-report-finding .text-button {
   margin-top: 16px;
@@ -93,6 +126,72 @@
   margin-top: 24px;
   font-size: 15px;
   line-height: 1.6;
+}
+.codex-live-output {
+  margin-top: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--canvas);
+}
+.codex-live-output > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+.codex-live-output > summary > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.codex-live-output > summary > span:last-child {
+  color: var(--ink);
+  font-size: 11px;
+}
+.codex-output-lines {
+  max-height: 320px;
+  overflow: auto;
+  margin: 0;
+  padding: 0 16px 12px;
+  list-style: none;
+  overscroll-behavior: contain;
+}
+.codex-output-line {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.codex-output-line > div {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--ink);
+}
+.codex-output-line pre {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.codex-output-line.error > div,
+.codex-output-line.warning > div {
+  font-weight: 750;
+}
+.codex-output-empty,
+.codex-output-note {
+  margin: 0;
+  padding: 0 16px 16px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.codex-live-output > .text-button {
+  margin: 0 16px 12px;
 }
 :root[data-theme="dark"] :is(.codex-report-note, .codex-report-meta) {
   color: var(--muted);
@@ -104,9 +203,12 @@
   .codex-report {
     padding: 16px;
   }
-  .codex-report-header,
-  .codex-report-finding-heading {
+  .codex-report-header {
     flex-wrap: wrap;
     gap: 8px;
+  }
+  .codex-finding-fields > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
   }
 }

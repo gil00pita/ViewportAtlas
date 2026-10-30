@@ -126,6 +126,8 @@ export function validateProfile(profile) {
     !Array.isArray(profile.categories) ||
     !profile.categories.every((x) => CATEGORIES.includes(x)) ||
     typeof profile.ai !== "boolean" ||
+    (profile.liveCodexOutput !== undefined && typeof profile.liveCodexOutput !== "boolean") ||
+    (profile.includePageCode !== undefined && typeof profile.includePageCode !== "boolean") ||
     typeof profile.fullPage !== "boolean" ||
     typeof profile.masks !== "string" ||
     profile.masks.length > 4000

@@ -308,7 +308,9 @@ app.post(
 );
 app.get("/api/runs", (req, res) =>
   res.json(
-    [...runs.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [...runs.values()]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map(({ codexOutput, ...run }) => run),
   ),
 );
 app.get(
@@ -380,10 +382,11 @@ app.get(
     const r = getRun(req.params.id);
     if (r.status === "running")
       throw new Error("Wait for the audit before generating its report.");
-    const path = await generatePdf(roots.get(r.id), r);
+    const layout = req.query.layout ?? "original";
+    const path = await generatePdf(roots.get(r.id), r, layout);
     req.query.inline === "1"
       ? res.type("application/pdf").sendFile(path, { dotfiles: "allow" })
-      : res.download(path, `Viewport-Atlas-${r.id}.pdf`, { dotfiles: "allow" });
+      : res.download(path, `Viewport-Atlas-${r.id}${layout === "a4" ? "-A4" : ""}.pdf`, { dotfiles: "allow" });
   }),
 );
 app.post(

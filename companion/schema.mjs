@@ -77,6 +77,10 @@ export const findingSchema = {
 };
 // All properties are required for Codex's strict structured-output contract.
 const aiFinding = structuredClone(findingSchema);
+for (const field of ["title", "impact", "recommendation"]) {
+  aiFinding.properties[field].minLength = 1;
+  aiFinding.properties[field].pattern = "\\S";
+}
 delete aiFinding.properties.rule;
 aiFinding.properties.source = { type: "string", const: "codex" };
 aiFinding.properties.status = { type: "string", const: "unverified" };

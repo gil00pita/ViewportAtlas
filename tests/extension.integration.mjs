@@ -80,13 +80,18 @@ test("packaged Manifest V3 extension creates real CDP viewports and forwards sou
       };
     });
     for (const fullPage of [false, true]) {
-      const captured = await call("/capture", "POST", { devices, fullPage });
+      const captured = await call("/capture", "POST", { devices, fullPage, ai: fullPage, includePageCode: true });
       assert(!captured.error, captured.error);
       for (const shot of captured.data.snapshots) {
         const device = devices.find((d) => d.id === shot.deviceId);
         const buffer = Buffer.from(shot.png, "base64");
         const info = await sharp(buffer).metadata();
         assert.equal(shot.conditions.deviceScaleFactor, 2);
+        if (fullPage) {
+          assert(shot.pageCode.html.includes("Extension fixture"));
+          assert(shot.pageCode.css.includes("min-resolution: 2dppx"));
+          assert(!shot.pageCode.html.includes("Private field"));
+        } else assert.equal(shot.pageCode, undefined, "Code must not be collected with AI disabled");
         assert.equal(shot.width, device.width);
         assert.equal(shot.height, fullPage ? 1200 : device.height);
         assert.equal(info.width, device.width * 2);
