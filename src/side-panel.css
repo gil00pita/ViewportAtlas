@@ -1,0 +1,259 @@
+body:has(.side-panel-app) {
+  min-width: 280px;
+}
+.app.side-panel-app {
+  display: block;
+  min-width: 0;
+  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--white);
+}
+.extension-sidebar {
+  display: flex;
+  height: 100%;
+  font-size: 12px;
+}
+.extension-rail {
+  flex: 0 0 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 4px 12px;
+  background: var(--navy);
+  color: #bdd5d1;
+}
+.extension-rail > img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  margin-bottom: 24px;
+}
+.extension-rail .icon-button {
+  width: 40px;
+  height: 40px;
+  color: inherit;
+}
+.extension-rail .icon-button:hover,
+.extension-rail .icon-button.is-active {
+  color: #5de2ce;
+  background: #ffffff12;
+}
+.extension-rail-bottom {
+  margin-top: auto;
+}
+.extension-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.extension-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.extension-panel-header strong {
+  font-size: 14px;
+}
+.extension-panel-header .icon-button {
+  width: 36px;
+  height: 36px;
+}
+.extension-target {
+  padding: 14px 20px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.extension-target > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.extension-target span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.extension-target svg {
+  flex-shrink: 0;
+}
+.extension-sidebar .text-button {
+  font-size: 11px;
+  min-height: 32px;
+  color: var(--teal);
+}
+.extension-panel-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.extension-panel-content > .audit-panel {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  border: 0;
+  background: var(--white);
+}
+.extension-sidebar .panel-heading {
+  padding: 18px 20px;
+}
+.extension-sidebar .panel-heading h2 {
+  font-size: 14px;
+}
+.extension-sidebar .panel-heading > div {
+  color: var(--muted);
+}
+.extension-sidebar .audit-panel-body {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px;
+}
+.extension-sidebar .field-label,
+.extension-sidebar .section-heading h3 {
+  font-size: 12px;
+}
+.extension-sidebar .field-label > span,
+.extension-sidebar .section-heading > span {
+  font-size: 10px;
+}
+.extension-sidebar .profile-select {
+  margin-top: 10px;
+  min-height: 40px;
+}
+.extension-sidebar .profile-select select {
+  font-size: 12px;
+}
+.extension-sidebar .field-description {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.extension-sidebar .panel-section {
+  margin-top: 24px;
+}
+.extension-sidebar .category-list {
+  gap: 8px;
+}
+.extension-sidebar .category-option {
+  font-size: 12px;
+  min-height: 30px;
+  gap: 9px;
+}
+.extension-sidebar .audit-devices {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.extension-sidebar .audit-device {
+  flex: 1 0 auto;
+  justify-content: center;
+  font-size: 10px;
+  padding: 9px 6px;
+  gap: 5px;
+  min-height: 36px;
+}
+.extension-sidebar .audit-device > svg:last-child:not(:first-child) {
+  margin-left: 0;
+}
+.extension-sidebar .instructions {
+  min-height: 88px;
+  font-size: 12px;
+}
+.extension-sidebar .ai-setting,
+.extension-sidebar .capture-row {
+  font-size: 12px;
+  min-height: 32px;
+}
+.extension-sidebar .advanced-settings {
+  font-size: 12px;
+  min-height: 40px;
+}
+.extension-sidebar .audit-panel-footer {
+  flex-shrink: 0;
+  background: var(--white);
+  border-color: var(--line);
+  padding: 16px 20px;
+}
+.extension-sidebar .scope-note,
+.extension-sidebar .local-footnote {
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.extension-sidebar .run-audit {
+  font-size: 13px;
+  height: 44px;
+}
+.extension-sidebar .run-audit > span:nth-child(2) {
+  text-align: left;
+}
+.extension-panel-footer {
+  border-top: 1px solid var(--line);
+  padding: 4px 20px;
+}
+.extension-panel-footer .text-button {
+  width: 100%;
+  justify-content: space-between;
+}
+.extension-connection,
+.extension-page-warning {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.extension-connection p {
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.extension-sidebar .findings-view,
+.extension-sidebar .history-page {
+  padding: 20px;
+}
+.extension-sidebar .findings-heading {
+  display: block;
+}
+.extension-sidebar .findings-heading h2 {
+  font-size: 18px;
+}
+.extension-sidebar .findings-heading p {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.extension-sidebar .findings-heading .button {
+  margin-top: 12px;
+}
+.extension-sidebar .finding-filters {
+  display: flex;
+  flex-wrap: wrap;
+}
+.extension-sidebar .finding-filters > * {
+  flex: 1 1 100px;
+  min-width: 0;
+}
+.extension-sidebar .finding-row {
+  overflow-wrap: anywhere;
+}
+.side-panel-app .toast {
+  left: 60px;
+  right: 12px;
+  bottom: 48px;
+  max-width: none;
+  transform: none;
+  font-size: 12px;
+}
+.side-panel-app .modal-overlay {
+  padding: 12px;
+}
+.side-panel-app .modal {
+  width: 100%;
+  max-height: calc(100dvh - 24px);
+}

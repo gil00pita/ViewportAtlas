@@ -4,6 +4,10 @@ declare global {
     chrome?: {
       runtime?: {
         id?: string;
+        onMessage?: {
+          addListener: (listener: (message: { type: string; url?: string }) => void) => void;
+          removeListener: (listener: (message: { type: string; url?: string }) => void) => void;
+        };
         sendMessage: (
           message: unknown,
         ) => Promise<{ data?: unknown; error?: string }>;

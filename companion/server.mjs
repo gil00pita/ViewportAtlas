@@ -26,6 +26,7 @@ import { validateFinding } from "./schema.mjs";
 import { codexStatus, execFileSafe } from "./codex.mjs";
 import { generatePdf } from "./pdf.mjs";
 import { listBoards, exportToMiro } from "./miro.mjs";
+import { validateFlowContext, FLOW_MAX_SCREENS } from "./flow-contract.mjs";
 const project = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const PORT = Number(process.env.ATLAS_PORT || 4318);
 const stateDir =
@@ -257,10 +258,16 @@ app.post(
 app.post(
   "/api/runs",
   route(async (req, res) => {
-    if (controllers.size)
+    const flow = req.body.flow ? validateFlowContext(req.body.flow) : null;
+    if (flow && (!Array.isArray(req.body.snapshots) || !req.body.snapshots.length))
+      throw new Error("Recorded-flow screens require captured browser evidence.");
+    if (controllers.size && (!flow || [...controllers.keys()].some((id) => runs.get(id)?.flow?.batchId !== flow.batchId)))
       throw new Error(
         "An audit is already running. Cancel it or wait for it to finish.",
       );
+    if (flow && ([...runs.values()].filter((run) => run.flow?.batchId === flow.batchId).length >= FLOW_MAX_SCREENS ||
+      [...runs.values()].some((run) => run.flow?.batchId === flow.batchId && run.flow.screenIndex === flow.screenIndex)))
+      throw new Error("This flow screen is already queued or the flow screen limit was reached.");
     const url = validateUrl(req.body.url);
     const devices = validateDevices(req.body.devices);
     const profile = validateProfile(req.body.profile);
@@ -269,12 +276,15 @@ app.post(
       throw new Error("The output folder must be an absolute path.");
     await mkdir(destination, { recursive: true });
     const run = newRun(redactUrl(url), devices, profile);
+    if (flow) { run.flow = flow; run.title = flow.screenName; }
     const root = join(destination, run.id);
     run.outputFolder = root;
     const previous = [...runs.values()]
       .filter(
         (r) =>
           r.url === run.url &&
+          r.flow?.screenName === run.flow?.screenName &&
+          r.flow?.planName === run.flow?.planName &&
           r.status === "completed" &&
           !r.checks.some((check) => check.status === "failed") &&
           r.profile.ai === profile.ai &&

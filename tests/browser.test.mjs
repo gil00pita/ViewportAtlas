@@ -45,6 +45,29 @@ after(async () => {
   await new Promise((r) => server.close(r));
   await rm(root, { recursive: true, force: true });
 });
+test("flow matching fills ordinary controls, rejects ambiguous targets, and respects custom masks", async () => {
+  const page = await getView("desktop").page.context().newPage();
+  try {
+    await page.setContent('<label>Search <input id="search" type="text"></label><select id="sort"><option value="name">Name</option><option value="date">Date</option></select><input id="private" type="text" data-sensitive><input id="password" type="password"><button type="button">Open menu</button><button type="button">Open menu</button>');
+    const box = await page.locator("#search").boundingBox();
+    const target = await page.evaluate(browserEvidence, { type: "describe", x: box.x + 5, y: box.y + 5 });
+    assert((await page.evaluate(browserEvidence, { type: "fill", descriptor: target, value: "Reusable flow" })).ok);
+    assert.equal(await page.locator("#search").inputValue(), "Reusable flow");
+    const selectBox = await page.locator("#sort").boundingBox();
+    const selectTarget = await page.evaluate(browserEvidence, { type: "describe", x: selectBox.x + 5, y: selectBox.y + 5 });
+    assert((await page.evaluate(browserEvidence, { type: "fill", descriptor: selectTarget, value: "date" })).ok);
+    assert.equal(await page.locator("#sort").inputValue(), "date");
+    assert.equal((await page.evaluate(browserEvidence, { type: "fill", descriptor: selectTarget, value: "missing-option" })).ok, false);
+    const resolved = await page.evaluate(browserEvidence, { type: "resolve", descriptor: target });
+    assert(resolved.ok && resolved.x > 0 && resolved.y > 0);
+    const ambiguous = await page.evaluate(browserEvidence, { type: "resolve", descriptor: { role: "button", name: "open menu" } });
+    assert.equal(ambiguous.ok, false);
+    assert.match(ambiguous.reason, /More than one/);
+    for (const id of ["private", "password"])
+      assert.equal((await page.evaluate(browserEvidence, { type: "fill", descriptor: { id }, value: "must not be set" })).ok, false);
+    assert.equal((await page.evaluate(browserEvidence, { type: "fill", descriptor: target, value: "masked", masks: "#search" })).ok, false);
+  } finally { await page.close(); }
+});
 test("embedding-restricted pages render at exact independent viewports", async () => {
   for (const d of devices) {
     const p = getView(d.id).page;

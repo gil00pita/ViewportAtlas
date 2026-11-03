@@ -4,10 +4,13 @@
   "version": "0.1.0",
   "description": "Every screen. One clear picture. Responsive Chromium views and local, evidence-based website audits.",
   "minimum_chrome_version": "125",
-  "permissions": ["activeTab", "storage", "nativeMessaging", "debugger"],
+  "permissions": ["activeTab", "storage", "nativeMessaging", "debugger", "sidePanel"],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "host_permissions": ["http://127.0.0.1:4318/*"],
   "action": {
-    "default_title": "Open this page in Viewport Atlas",
+    "default_title": "Audit this page in Viewport Atlas",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"

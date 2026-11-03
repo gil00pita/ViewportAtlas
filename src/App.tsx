@@ -69,6 +69,8 @@ import {
 } from "lucide-react";
 import { api, assetUrl, downloadJson, extensionMode, health } from "./api";
 import { CodexReport } from "./CodexReport";
+import { FlowPlanner } from "./FlowPlanner";
+import { useFlowPlanner } from "./use-flow-planner";
 import { exportPdfReport, type PdfLayout } from "./pdf-report";
 import {
   DEVICES,
@@ -90,6 +92,10 @@ type Sync = {
   scrolling: boolean;
   forms: boolean;
 };
+const launchParams = new URLSearchParams(location.search);
+const sidePanel = extensionMode && location.pathname.endsWith("/sidepanel.html");
+const launchUrl = launchParams.get("url") || "";
+const launchRun = launchParams.get("run") || "";
 const categoryIcons = {
   Accessibility,
   Performance: Gauge,
@@ -135,6 +141,7 @@ function IconButton({
       className={`icon-button ${active ? "is-active" : ""} ${className}`}
       title={label}
       aria-label={label}
+      aria-pressed={active}
       onClick={onClick}
       disabled={disabled}
     >
@@ -172,7 +179,8 @@ function App() {
     save("atlas-theme", theme);
   }, [theme]);
   const [page, setPage] = useState<Page>("workspace");
-  const [tab, setTab] = useState<"views" | "findings">("views");
+  const [tab, setTab] = useState<"views" | "findings">(launchRun ? "findings" : "views");
+  const [auditMode, setAuditMode] = useState<"page" | "flow">(() => load("atlas-audit-mode", "page"));
   const [status, setStatus] = useState<Health | null>(null);
   const [connectionError, setConnectionError] = useState("");
   const connected = Boolean(status);
@@ -191,7 +199,7 @@ function App() {
   const profile =
     profiles.find((p) => p.id === profileId) || profiles[0] || PROFILES[0];
   const [views, setViews] = useState<View[]>([]);
-  const [url, setUrl] = useState(() => load("atlas-url", ""));
+  const [url, setUrl] = useState(() => launchUrl || (extensionMode ? "" : load("atlas-url", "")));
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
   const [activeDevice, setActiveDevice] = useState(devices[0]?.id || "");
@@ -265,6 +273,10 @@ function App() {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setToast(""), 6000);
   }, []);
+  const flow = useFlowPlanner(extensionMode, notify);
+  const sidebarInitialized = useRef(false);
+  useEffect(() => { save("atlas-audit-mode", auditMode); }, [auditMode]);
+  useEffect(() => { setConsent(false); }, [auditMode, flow.state?.selectedId]);
   const refreshHealth = useCallback(async () => {
     try {
       const h = await health();
@@ -317,6 +329,7 @@ function App() {
       !connected ||
       busy ||
       runBusy ||
+      sidePanel ||
       page !== "workspace" ||
       tab !== "views"
     )
@@ -364,10 +377,10 @@ function App() {
     [notify],
   );
   useEffect(() => {
-    if (connected && url) loadViews(url, devices);
+    if (connected && url && !sidePanel && !launchRun) loadViews(url, devices);
   }, [connected, url, devices, loadViews]);
   useEffect(() => {
-    if (extensionMode)
+    if (extensionMode && !sidePanel && !launchUrl)
       api<{ url: string }>("/current-tab")
         .then((d) => {
           setUrl(d.url);
@@ -375,6 +388,48 @@ function App() {
         })
         .catch((e) => notify(e.message));
   }, [notify]);
+  useEffect(() => {
+    if (!sidePanel) return;
+    const messages = window.chrome?.runtime?.onMessage;
+    const onTarget = (message: { type: string; url?: string }) => {
+      if (message.type !== "audit-target" || runBusy || flow.running || flow.recording) return;
+      setUrl(message.url || "");
+      setPage("workspace");
+      setTab("views");
+    };
+    const refreshTarget = () => {
+      if (runBusy || flow.running || flow.recording) return;
+      api<{ url: string }>("/current-tab", "POST", { fromSidebar: true })
+        .then((target) => onTarget({ type: "audit-target", url: target.url }))
+        .catch((error) => notify(error.message));
+    };
+    const onVisibility = () => { if (!document.hidden) refreshTarget(); };
+    if (!sidebarInitialized.current) {
+      sidebarInitialized.current = true;
+      refreshTarget();
+    }
+    messages?.addListener(onTarget);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      messages?.removeListener(onTarget);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [runBusy, flow.running, flow.recording, notify]);
+  useEffect(() => {
+    if (!connected) return;
+    const id = launchRun || (sidePanel ? load<string>("atlas-sidebar-run", "") : "");
+    if (!id) return;
+    let cancelled = false;
+    api<Run>(`/runs/${encodeURIComponent(id)}`).then((detail) => {
+      if (cancelled) return;
+      setRun(detail);
+      setRunBusy(detail.status === "running");
+      if (launchRun || detail.status === "running") setTab("findings");
+    }).catch((error) => {
+      if (!cancelled) notify(error.message);
+    });
+    return () => { cancelled = true; };
+  }, [connected, notify]);
   useEffect(() => {
     setAddress(url);
   }, [url]);
@@ -459,6 +514,11 @@ function App() {
     if (next === "history" || next === "reports") refreshHistory();
   };
   const startAudit = async () => {
+    if (runBusy || flow.running || flow.recording) return;
+    if (auditMode !== "flow" && !/^https?:\/\//.test(url)) {
+      notify("Open a website in Chrome, then click the extension to audit it.");
+      return;
+    }
     if (!profile.categories.length) {
       notify("Choose at least one audit category.");
       return;
@@ -468,19 +528,30 @@ function App() {
       return;
     }
     setModal(null);
+    if (auditMode === "flow" && extensionMode) {
+      await flow.perform("/flows/run", "POST", {
+        devices: auditDevices, profile,
+      });
+      return;
+    }
     setRun(null);
     setRunBusy(true);
     try {
-      const d = devices.filter((d) => profile.devices.includes(d.id));
+      const d = auditDevices;
       if (!d.length)
         throw Error("Choose at least one device in audit settings.");
+      if (sidePanel) {
+        const prepared = await api<View[]>("/views", "POST", { url, devices: d });
+        setViews(prepared);
+      }
       const result = await api<Run>("/runs", "POST", {
-        url: views.find((v) => v.id === activeDevice)?.url || url,
+        url: sidePanel ? url : views.find((v) => v.id === activeDevice)?.url || url,
         devices: d,
         profile,
       });
       setRun(result);
-      if (profile.ai && profile.liveCodexOutput) {
+      if (sidePanel) save("atlas-sidebar-run", result.id);
+      if (sidePanel || (profile.ai && profile.liveCodexOutput)) {
         setPage("workspace");
         setTab("findings");
       }
@@ -557,10 +628,11 @@ function App() {
       notify((e as Error).message);
     }
   };
-  const openRun = async (r: Run) => {
+  const openRun = async (r: Pick<Run, "id">) => {
     try {
       const detail = await api<Run>(`/runs/${r.id}`);
       setRun(detail);
+      if (sidePanel) save("atlas-sidebar-run", detail.id);
       setRunBusy(detail.status === "running");
       setPage("workspace");
       setTab("findings");
@@ -580,9 +652,9 @@ function App() {
             .toLowerCase()
             .includes(search.toLowerCase())),
     ) || [];
-  const selectedCount = devices.filter((d) =>
-    profile.devices.includes(d.id),
-  ).length;
+  const auditDeviceIds = new Set(profile.devices);
+  const auditDevices = devices.filter((device) => auditDeviceIds.has(device.id));
+  const selectedCount = auditDevices.length;
   const visibleDevices = devices.filter((d) => !d.hidden);
   const example = url.includes("/demo.html");
   const showExport = async () => {
@@ -952,14 +1024,21 @@ function App() {
           <ScanLine size={18} />
           <h2>Audit settings</h2>
         </div>
-        <IconButton
+        {!sidePanel && <IconButton
           label="Hide audit settings"
           onClick={() => setRightPanel(false)}
         >
           <PanelRightClose size={16} />
-        </IconButton>
+        </IconButton>}
       </div>
       <div className="audit-panel-body">
+        {extensionMode && <>
+          <div className="audit-mode" role="group" aria-label="Audit scope">
+            <button aria-pressed={auditMode === "page"} disabled={flow.running || flow.recording} onClick={() => setAuditMode("page")}>This page</button>
+            <button aria-pressed={auditMode === "flow"} disabled={runBusy} onClick={() => setAuditMode("flow")}>User flow</button>
+          </div>
+          {auditMode === "flow" && <FlowPlanner flow={flow} masks={profile.masks} disabled={runBusy} onOpenRun={openRun} />}
+        </>}
         <div className="field-label">
           Audit profile <span>6 built-in profiles</span>
         </div>
@@ -1152,21 +1231,26 @@ function App() {
       <div className="audit-panel-footer">
         <div className="scope-note">
           <Info size={13} />
-          <span>Just this page. No site-wide crawling.</span>
+          <span>{auditMode === "flow" && extensionMode ? "Selected screens only. No site-wide crawling." : "Just this page. No site-wide crawling."}</span>
         </div>
         <button
           className="primary-button run-audit"
-          disabled={runBusy || busy || !status || !selectedCount}
+          disabled={runBusy || busy || !status || !selectedCount || flow.running || flow.recording || flow.pending ||
+            (auditMode === "flow" && extensionMode ? !flow.plan?.steps.some((step) => step.type === "checkpoint" && step.audit) : sidePanel && !/^https?:\/\//.test(url))}
           onClick={startAudit}
         >
-          {runBusy ? (
+          {runBusy || flow.running ? (
             <Loader2 size={16} className="spin" />
           ) : (
             <ScanLine size={17} />
           )}
-          <span>{runBusy ? "Audit in progress…" : "Run audit"}</span>
-          {!runBusy && <span className="button-shortcut">↵</span>}
+          <span>{flow.recording ? "Stop recording to run" : flow.running ? "Flow audit in progress…" : runBusy ? "Audit in progress…" : auditMode === "flow" && extensionMode ? "Run flow audit" : "Run audit"}</span>
+          {!runBusy && !flow.running && !sidePanel && <span className="button-shortcut">↵</span>}
         </button>
+        {flow.running && <>
+          <p className="progress-text" role="status">{flow.state?.job?.progress}</p>
+          <button className="text-button" disabled={flow.pending} onClick={() => flow.perform("/flows/cancel")}>Cancel flow</button>
+        </>}
         {runBusy && (
           <>
             <p className="progress-text" role="status">
@@ -1199,7 +1283,10 @@ function App() {
           <div className="workspace-tabs">
             <button
               className={tab === "views" ? "active" : ""}
-              onClick={() => setTab("views")}
+              onClick={() => {
+                setTab("views");
+                if (launchRun && !runBusy) loadViews(url, devices);
+              }}
             >
               <Monitor size={16} />
               Responsive workspace
@@ -1536,6 +1623,7 @@ function App() {
               Export
             </button>
           </div>
+          {run.flow && <p className="field-description">{run.flow.planName} · Screen {run.flow.screenIndex + 1}: {run.flow.screenName}</p>}
           {run.status === "running" && (
             <p className="notice">
               <Loader2 className="spin" size={16} />
@@ -2157,9 +2245,69 @@ function App() {
       </div>
     </>
   );
+  const openFullWorkspace = () => {
+    api("/workspace/open", "POST", {
+      url,
+      runId: tab === "findings" || runBusy ? run?.id : undefined,
+    }).catch((error) => notify(error.message));
+  };
+  const renderSidePanel = () => (
+    <div className="extension-sidebar">
+      <nav className="extension-rail" aria-label="Sidebar navigation">
+        <img src="./viewport-atlas-logo.svg" alt="Viewport Atlas" />
+        <IconButton label="Audit settings" active={page === "workspace" && tab === "views"} onClick={() => { setPage("workspace"); setTab("views"); }}>
+          <ScanLine size={19} />
+        </IconButton>
+        <IconButton label="Findings" active={page === "workspace" && tab === "findings"} onClick={() => { setPage("workspace"); setTab("findings"); }}>
+          <FileText size={19} />
+        </IconButton>
+        <IconButton label="Audit history" active={page === "history"} onClick={() => selectPage("history")}>
+          <History size={19} />
+        </IconButton>
+        <div className="extension-rail-bottom">
+          <IconButton label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          </IconButton>
+        </div>
+      </nav>
+      <div className="extension-panel">
+        <header className="extension-panel-header">
+          <strong>Viewport Atlas</strong>
+          <IconButton label="Open full workspace" disabled={runBusy && !run} onClick={openFullWorkspace}>
+            <ArrowUpRight size={19} />
+          </IconButton>
+        </header>
+        <div className="extension-target">
+          <div><Globe size={15} /><span title={url}>{url || "Choose a website to audit"}</span></div>
+          <button className="text-button" disabled={runBusy || flow.running || flow.recording} onClick={async () => {
+            try {
+              const target = await api<{ url: string }>("/current-tab", "POST");
+              setUrl(target.url);
+              setPage("workspace");
+              setTab("views");
+            } catch (error) { notify((error as Error).message); }
+          }}>Use current tab<RotateCw size={12} /></button>
+        </div>
+        {!connected && <div className="extension-connection" role="status">
+          <strong>Connect the local companion</strong>
+          <p>{connectionError || "Connecting to the local companion…"}</p>
+          <button className="button" onClick={refreshHealth}>Reconnect companion</button>
+        </div>}
+        {url && !/^https?:\/\//.test(url) && <p className="extension-page-warning">This page can’t be audited. Open an HTTP or HTTPS website, then choose Use current tab.</p>}
+        <main className="extension-panel-content" id="workspace">
+          {page === "history" ? renderHistory() : tab === "findings" ? renderFindings() : renderSettingsPanel()}
+        </main>
+        <footer className="extension-panel-footer">
+          <button className="text-button" disabled={runBusy && !run} onClick={openFullWorkspace}>
+            Open full workspace<ArrowUpRight size={14} />
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
   return (
-    <div className={`app ${page === "workspace" ? "workspace-active" : ""}`}>
-      {renderSidebar()}
+    <div className={sidePanel ? "app side-panel-app" : `app ${page === "workspace" ? "workspace-active" : ""}`}>
+      {sidePanel ? renderSidePanel() : <>{renderSidebar()}
       <div className="app-content" id="workspace">
         {renderHeader()}
         <main className={`page-content page-${page}`}>
@@ -2188,7 +2336,7 @@ function App() {
             </span>
           </footer>
         )}
-      </div>
+      </div></>}
       {toast && (
         <div className="toast" role="status">
           <Info size={17} />
@@ -2436,6 +2584,7 @@ function App() {
                             are masked. Page evidence is treated as untrusted
                             content.
                           </p>
+                          {auditMode === "flow" && extensionMode && <p>Evidence is collected and analyzed separately for every selected screen in this recorded flow. Ordinary field entries used during replay may appear in screenshots. Apply masks before running.</p>}
                           {profile.includePageCode && (
                             <p>Page code is included: rendered HTML, readable CSS, and script URLs. Form values, masked regions, inline scripts, and event handlers are omitted. This is a limited frontend snapshot, not your original component or server source. Code snapshots are saved in the audit folder.</p>
                           )}
