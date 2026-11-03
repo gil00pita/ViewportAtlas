@@ -118,7 +118,7 @@ export async function writeCapture(root, runId, deviceId, capture) {
     capture.height > MAX_HEIGHT
   )
     throw new Error(
-      "Screenshot format or dimensions do not match capture evidence.",
+      `Screenshot format or dimensions do not match capture evidence. Expected ${capture.width * scale} × ${capture.height * scale}; received ${info.width} × ${info.height}.`,
     );
   await mkdir(join(root, "screenshots"), { recursive: true });
   const file = join(root, "screenshots", `${deviceId}.png`);

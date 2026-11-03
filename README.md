@@ -1,10 +1,40 @@
 # Viewport Atlas
 
-**Every screen. One clear picture.** A local responsive preview and audit workspace, Chrome Manifest V3 extension, and Native Messaging companion. Uses the supplied SVG product mark, with generated 16/32/48/128px Chrome icons.
+**Every screen. One clear picture.** A local responsive preview and audit workspace with a standalone desktop preview, Chrome Manifest V3 extension, and Native Messaging companion. Uses the supplied SVG product mark, with generated 16/32/48/128px Chrome icons.
 
 ## Run locally
 
-Requirements: Node.js 22+, npm, and macOS, Linux, or Windows for standalone mode. Native Messaging installation supports Google Chrome on macOS and Linux.
+### Standalone desktop preview
+
+The first desktop migration milestone is available for local development on macOS and Windows:
+
+```sh
+npm install
+npm run desktop
+```
+
+The app bundles Electron's Chromium runtime and opens three real browser views (393 × 852, 820 × 1180, and 1440 × 900). It runs without the extension, Native Messaging registration, the loopback companion, or a separate Playwright browser installation. Development requires Node.js 22.12+; packaged apps include the runtime.
+
+Open the synthetic example or enter an HTTP(S) URL. Click an ordinary text field in any view and type directly: counterpart focus and field edits follow across the other views. Live edits include selection replacement, deletion, multiline text, and committed Unicode text, including controlled React inputs. The source keeps keyboard focus. Website cookies and storage use an application-owned persistent session shared by the three views; they do not import Chrome sign-ins.
+
+**Capture & export PDF** asks for an output folder and writes masked, current-viewport 2× PNGs, a PDF using the existing Original layout, and `run.json` into a fresh run directory. This preview does not run desktop audits or AI checks; its report explicitly marks them not run. Full-page capture, flow recording, comprehensive keyboard/widget/scroll/navigation synchronization, and the existing findings/history UI are later migration milestones. The web/extension workflow below remains available for those features.
+
+Synchronization pauses visibly for ambiguous or unsupported controls and consequential actions. Purchases and submissions run in the source only; private fields are excluded from mirroring. **Pause sync** permits independent preparation, but using a view while paused requires **Reload views** before synchronization can resume. Reloading discards unsaved page edits. Current text fields are bounded to 4,000 characters, and unsupported popups/downloads require another browser.
+
+```sh
+npm run test:desktop       # real Electron integration checks
+npm run package:desktop    # an application folder for the current OS/CPU
+npm run make:desktop       # a ZIP containing that application
+npm run test:desktop:packaged # the same checks against the packaged application
+```
+
+Application folders and archives are written under `out/`. Windows and macOS builds have separate CI jobs, including Intel and Apple silicon Mac runners. Only local macOS Apple silicon execution has been verified in this workspace; Windows/Intel jobs must pass before claiming support is validated. Initial builds are unsigned developer previews. Signed installers and automatic updates belong to the release milestone.
+
+See the [desktop migration plan](docs/DESKTOP-MIGRATION.md) for the full roadmap and acceptance contract.
+
+### Existing web workspace
+
+Requirements: Node.js 22.12+, npm, and macOS, Linux, or Windows for standalone mode. Native Messaging installation supports Google Chrome on macOS and Linux.
 
 ```sh
 npm install

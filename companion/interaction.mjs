@@ -24,7 +24,7 @@ export function browserEvidence(action) {
     const safeControl =
       el.matches('[role="tab"],summary,[aria-expanded],[aria-controls]') ||
       el.matches(
-        'input:not([type]),input[type="text"],input[type="search"],input[type="email"],textarea,select',
+        'input:not([type]),input[type="text"],input[type="search"],input[type="email"],input[type="url"],input[type="tel"],textarea,select',
       ) ||
       (el.tagName === "BUTTON" &&
         /^(open|close|show|hide|expand|collapse|view|filter|sort|next|previous|back|menu)\b/i.test(
@@ -50,6 +50,7 @@ export function browserEvidence(action) {
       ),
       href: el.tagName === "A" ? el.href : "",
       type: el.getAttribute("type") || "",
+      fieldName: el.getAttribute("name") || "",
       risky:
         !(safeLink || safeControl) ||
         risky.test(el.innerText || el.getAttribute("aria-label") || "") ||
@@ -67,7 +68,7 @@ export function browserEvidence(action) {
   if (action.type === "describe")
     return descriptor(document.elementFromPoint(action.x, action.y));
   if (action.type === "describe-element") return descriptor(action.element);
-  if (action.type === "match" || action.type === "resolve" || action.type === "fill") {
+  if (["match", "resolve", "fill", "focus", "edit"].includes(action.type)) {
     const d = action.descriptor;
     if (!d || d.risky || d.sensitive)
       return {
@@ -86,6 +87,9 @@ export function browserEvidence(action) {
       d.id ? candidates.filter((e) => e.id === d.id) : [],
       d.href
         ? candidates.filter((e) => e.tagName === "A" && e.href === d.href)
+        : [],
+      d.fieldName
+        ? candidates.filter((e) => e.getAttribute("name") === d.fieldName && e.tagName.toLowerCase() === d.tag)
         : [],
       d.name
         ? candidates.filter(
@@ -114,6 +118,27 @@ export function browserEvidence(action) {
           shown[0].scrollIntoView({ block: "center", inline: "nearest" });
           const r = shown[0].getBoundingClientRect();
           return { ok: true, x: r.x + r.width / 2, y: r.y + r.height / 2 };
+        }
+        if (action.type === "focus") {
+          shown[0].focus({ preventScroll: true });
+          return { ok: document.activeElement === shown[0] };
+        }
+        if (action.type === "edit") {
+          const el = shown[0];
+          if (!el.matches('input:not([type]),input[type="text"],input[type="search"],input[type="email"],input[type="url"],input[type="tel"],textarea'))
+            return { ok: false, reason: "This field is not supported by live text synchronization yet." };
+          if (typeof action.value !== "string" || action.value.length > 4000)
+            return { ok: false, reason: "Live text synchronization supports up to 4,000 characters per field." };
+          el.focus({ preventScroll: true });
+          const changed = el.value !== action.value;
+          const prototype = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+          Object.getOwnPropertyDescriptor(prototype, "value").set.call(el, action.value);
+          if (changed) el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: action.inputType || "insertText" }));
+          if (Number.isInteger(action.start) && Number.isInteger(action.end) && el.setSelectionRange) {
+            try { el.setSelectionRange(action.start, action.end, action.direction || "none"); } catch { /* Email and other non-selection inputs have no caret interface. */ }
+          }
+          if (action.commit) el.dispatchEvent(new Event("change", { bubbles: true }));
+          return { ok: el.value === action.value, reason: el.value === action.value ? undefined : "The page changed the mirrored field value." };
         }
         if (action.type === "fill") {
           const el = shown[0];
