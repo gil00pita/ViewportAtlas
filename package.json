@@ -13,7 +13,7 @@
     "install:browser": "playwright install chromium",
     "install:native": "node scripts/install-native.mjs",
     "icons": "node scripts/icons.mjs",
-    "test:extension": "node --test tests/extension.integration.mjs tests/pdf-export.integration.mjs"
+    "test:extension": "node --test --test-concurrency=2 tests/extension.integration.mjs tests/pdf-export.integration.mjs tests/side-panel.integration.mjs tests/flow.integration.mjs tests/recording.integration.mjs"
   },
   "dependencies": {
     "@axe-core/playwright": "^4.10.2",

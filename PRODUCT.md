@@ -11,7 +11,7 @@ Website designers, developers, and reviewers working across mobile, tablet, and 
 ## Operating Context
 Local Chrome, a native messaging companion, and the user's installed and authenticated Codex CLI. Files remain local; selected evidence is sent for AI analysis only when enabled.
 ## Capabilities and Constraints
-The attached brief is the implementation specification. Never fabricate audit results, measured scores, device testing, or successful integrations. Preserve site security headers. Chromium viewport emulation is not real-device or cross-engine testing. Audit only the current page. State and authentication may be shared in extension mode.
+The attached brief and subsequent user requests are the implementation specification. Never fabricate audit results, measured scores, device testing, or successful integrations. Preserve site security headers. Chromium viewport emulation is not real-device or cross-engine testing. Audit the current page or explicitly selected screens in a recorded user flow; never crawl unrecorded pages. State and authentication may be shared in extension mode.
 ## Brand Commitments
 Use the supplied hat-and-eye SVG verbatim. Turquoise #00C8B8, coral #FF704B, navy #071F46, cyan #22D9EF, white. Restrained accents, readable controls, room for previews.
 ## Evidence on Hand

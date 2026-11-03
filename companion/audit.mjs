@@ -146,6 +146,7 @@ async function saveRunFiles(root, run, { pdf = true } = {}) {
     id: run.id,
     createdAt: run.createdAt,
     url: run.url,
+    ...(run.flow ? { flow: run.flow } : {}),
     devices: run.devices,
     checks: run.checks,
     status: run.status,

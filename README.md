@@ -33,7 +33,21 @@ The app is served on loopback only. The companion and development frontend share
    npm run install:native -- YOUR_CHROME_EXTENSION_ID
    ```
 
-4. Restart any running companion, then reload the extension. Open a website and click the Viewport Atlas toolbar icon.
+4. Restart any running companion, then reload the extension. Open a website and click the Viewport Atlas toolbar icon. Clicking toggles the audit sidebar open and closed alongside the website.
+
+The sidebar starts with audit settings for the selected page. Choose a profile, categories, and devices, then **Run audit**. Device tabs are created when the audit starts. The sidebar shows progress and findings, and its left rail opens settings, findings, or audit history. **Open full workspace** expands into a tab for responsive previews and detailed review, carrying the selected URL and current audit. Reopening the sidebar resumes a running audit; completed audits remain available from Findings and history.
+
+Opening the sidebar selects the active website; while it is open, choose **Use current tab** after navigating or switching websites. Running audits and recordings keep their selected target. Browser-internal pages cannot be audited. After updating the code, rebuild and reload the extension in `chrome://extensions` to pick up sidebar changes and the `sidePanel` permission.
+
+## Plan and audit a user flow
+
+In Chrome audit settings, choose **User flow → Record a new flow**. Start from a page that can be reopened, with any required login already complete. Walk through the website in its original tab: clicks, navigation, ordinary text/select edits, scrolling, and supported UI states are recorded. The starting screen is selected automatically. Choose **Save screen** in the sidebar at each state you want reviewed, then **Stop recording**. Screen marking is manual by default; automatic marking after interactions is optional.
+
+Review the ordered steps, rename the flow and its screens, remove unwanted actions, and uncheck screens you do not want audited. Choose audit devices, categories, and optional Codex settings, then **Run flow audit**. The extension opens device tabs, replays the journey, waits for page readiness, relevant requests, and DOM changes, and captures each selected state. Screen reports are queued as soon as their evidence is captured; replay does not wait for the preceding report to finish. The progress list links to each screen's report, and all reports remain in Audit history with their flow and screen names. Each has the existing evidence, findings, and PDF/JSON exports.
+
+Plans are saved locally in the extension's Chrome storage, including ordinary field values; do not enter sensitive text into unmasked fields while recording. Passwords, payment/file controls, and configured masked regions are excluded. Purchases, deletions, form submissions, private or unclassified interactions, new-tab actions, iframes, and shadow-root interactions require manual review and are not replayed. A missing, hidden, ambiguous, or changed control stops replay with its device and step; previously captured reports remain available. Prepare responsive menus consistently across devices or record separate flows when their controls differ. Single-tab flows support up to 120 steps and 20 screens, with up to 10 saved plans.
+
+You can close the sidebar while replay runs and reopen it to see progress. **Cancel flow** stops further replay and cancels queued reports while preserving captured evidence. Closing Chrome, reloading the extension, opening DevTools on an instrumented tab, cancelling Chrome’s debugging banner, or closing a required tab can interrupt the flow. Saved steps and reports remain available. An interrupted recording shows Chrome’s detach reason and **Resume recording**: close DevTools if needed, reopen your website if its tab closed, and resume the same saved flow. Review any actions missed during the gap, then remove the recording-gap review step before replay. Replay interruptions retain their captured reports. No unrecorded links are crawled. Rebuild/reload the extension and restart the companion after installing this update.
 
 The native installer registers an executable wrapper in `~/.viewport-atlas` and a Google Chrome host manifest restricted to your exact extension ID. It records absolute Node and checkout paths; reinstall after moving either. Uninstall by deleting `com.viewportatlas.companion.json` from Chrome's `NativeMessagingHosts` directory and removing `~/.viewport-atlas/native-host` and `extension-id`.
 

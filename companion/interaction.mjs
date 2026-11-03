@@ -6,7 +6,8 @@ export function browserEvidence(action) {
   const sensitive = (e) =>
     e.matches?.(
       'input[type="password"],input[type="file"],input[autocomplete*="cc-"],input[autocomplete*="password"],[data-sensitive]',
-    ) || e.closest?.("[data-sensitive]");
+    ) || e.closest?.("[data-sensitive]") ||
+    (action.masks && e.closest?.(action.masks));
   const descriptor = (e) => {
     const el =
       e?.closest?.(
@@ -23,7 +24,7 @@ export function browserEvidence(action) {
     const safeControl =
       el.matches('[role="tab"],summary,[aria-expanded],[aria-controls]') ||
       el.matches(
-        'input[type="text"],input[type="search"],input[type="email"],textarea',
+        'input:not([type]),input[type="text"],input[type="search"],input[type="email"],textarea,select',
       ) ||
       (el.tagName === "BUTTON" &&
         /^(open|close|show|hide|expand|collapse|view|filter|sort|next|previous|back|menu)\b/i.test(
@@ -65,7 +66,8 @@ export function browserEvidence(action) {
     !e.disabled;
   if (action.type === "describe")
     return descriptor(document.elementFromPoint(action.x, action.y));
-  if (action.type === "match") {
+  if (action.type === "describe-element") return descriptor(action.element);
+  if (action.type === "match" || action.type === "resolve" || action.type === "fill") {
     const d = action.descriptor;
     if (!d || d.risky || d.sensitive)
       return {
@@ -108,6 +110,23 @@ export function browserEvidence(action) {
             ok: false,
             reason: "The matching action may change server state.",
           };
+        if (action.type === "resolve") {
+          shown[0].scrollIntoView({ block: "center", inline: "nearest" });
+          const r = shown[0].getBoundingClientRect();
+          return { ok: true, x: r.x + r.width / 2, y: r.y + r.height / 2 };
+        }
+        if (action.type === "fill") {
+          const el = shown[0];
+          if (!el.matches('input:not([type]),input[type="text"],input[type="search"],input[type="email"],textarea,select'))
+            return { ok: false, reason: "This field cannot be replayed." };
+          if (el.tagName === "SELECT" && ![...el.options].some((option) => option.value === String(action.value)))
+            return { ok: false, reason: "The recorded option is no longer available." };
+          const prototype = el.tagName === "SELECT" ? HTMLSelectElement.prototype : el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+          Object.getOwnPropertyDescriptor(prototype, "value").set.call(el, String(action.value).slice(0, 4000));
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+          return { ok: true };
+        }
         shown[0].click();
         return { ok: true };
       }

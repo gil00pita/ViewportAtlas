@@ -1,6 +1,7 @@
 import { browserEvidence } from "./interaction.mjs";
 import { CAPTURE_SCALE, MAX_HEIGHT } from "./capture-settings.mjs";
 import { collectPageCode } from "./page-code.mjs";
+import { createFlowController } from "./flow-controller.mjs";
 const HOST = "com.viewportatlas.companion";
 let nativePort;
 const pending = new Map();
@@ -13,6 +14,7 @@ let syncOptions = {
   forms: false,
 };
 let currentUrl = "";
+let currentTabId;
 let mutedUntil = 0;
 let auditLocked = false;
 const command = (tabId, method, params = {}) =>
@@ -71,11 +73,8 @@ function native(path, method = "GET", body) {
     }
   });
 }
-chrome.action.onClicked.addListener(async (tab) => {
-  currentUrl = tab.url || "https://example.com";
-  await chrome.storage.local.set({ currentUrl });
-  await chrome.tabs.create({ url: chrome.runtime.getURL("index.html") });
-});
+// Let Chrome own visibility, including toolbar toggles and its native close button.
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
 async function waitReady(tabId) {
   for (let i = 0; i < 60; i++) {
     try {
@@ -166,6 +165,9 @@ async function preview(v) {
 }
 async function createViews(url, devices) {
   if (auditLocked) throw new Error("Wait for the active audit to finish.");
+  return replaceViews(url, devices);
+}
+async function replaceViews(url, devices) {
   if (
     !/^https?:\/\//.test(url) ||
     !Array.isArray(devices) ||
@@ -496,8 +498,14 @@ async function snapshots(devices, profile) {
   mutedUntil = Date.now() + 1000;
   return results;
 }
+const flows = createFlowController({ command, evaluate, browserEvidence, createViews: replaceViews, snapshots, native, views,
+  sourceTab: async () => currentTabId || (await chrome.storage.local.get("currentTabId")).currentTabId || (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0]?.id,
+  lock: (locked) => { auditLocked = locked; },
+});
 chrome.debugger.onEvent.addListener(async (source, method, params) => {
+  await flows.onEvent(source, method, params);
   if (
+    flows.busy ||
     !["Page.frameNavigated", "Page.navigatedWithinDocument"].includes(method) ||
     Date.now() < mutedUntil ||
     !syncOptions.navigation
@@ -517,7 +525,8 @@ chrome.debugger.onEvent.addListener(async (source, method, params) => {
     mutedUntil = Date.now() + 500;
   }
 });
-chrome.debugger.onDetach.addListener((source) => {
+chrome.debugger.onDetach.addListener((source, reason) => {
+  flows.onDetach(source, reason).catch(() => {});
   const v = [...views.values()].find((v) => v.tabId === source.tabId);
   if (v)
     v.error =
@@ -537,11 +546,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 async function handle({ path, method = "GET", body }) {
+  if (path === "/flows" || path.startsWith("/flows/")) {
+    if (auditLocked && !flows.busy && !["/flows", "/flows/cancel"].includes(path))
+      throw new Error("Finish or cancel the current audit before planning a flow.");
+    return flows.handle(path, method, body);
+  }
+  if (flows.busy && ((path === "/views" && method === "POST") || path.includes("/action") ||
+    (path === "/runs" && method === "POST") || path === "/capture"))
+    throw new Error("Stop recording or finish the recorded flow before changing views or starting another audit.");
+  if (path === "/workspace/open" && method === "POST") {
+    const target = new URL(chrome.runtime.getURL("index.html"));
+    if (/^https?:\/\//.test(body?.url || "")) target.searchParams.set("url", body.url);
+    if (typeof body?.runId === "string") target.searchParams.set("run", body.runId);
+    await chrome.tabs.create({ url: target.href });
+    return { opened: true };
+  }
   if (path === "/current-tab") {
-    if (!currentUrl)
+    if (method === "POST") {
+      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      // Native side-panel action clicks do not grant activeTab. The existing
+      // debugger permission exposes target metadata without attaching to a page.
+      const targetUrl = tab?.url || (await chrome.debugger.getTargets()).find((target) => target.tabId === tab?.id)?.url;
+      if (!targetUrl)
+        throw new Error("The current page address is unavailable. Open a website and try Use current tab again.");
+      // Opening the full workspace can make our own UI the active tab. Keep
+      // the selected website rather than targeting an extension document.
+      if (body?.fromSidebar && targetUrl.startsWith(chrome.runtime.getURL(""))) {
+        if (!currentUrl) currentUrl = (await chrome.storage.local.get("currentUrl")).currentUrl || "";
+        return { url: currentUrl };
+      }
+      currentUrl = targetUrl;
+      currentTabId = tab.id;
+      await chrome.storage.local.set({ currentUrl, currentTabId });
+    } else if (!currentUrl)
       currentUrl =
-        (await chrome.storage.local.get("currentUrl")).currentUrl ||
-        "https://example.com";
+        (await chrome.storage.local.get("currentUrl")).currentUrl || "";
     return { url: currentUrl };
   }
   if (path === "/views" && method === "POST")
@@ -569,7 +608,7 @@ async function handle({ path, method = "GET", body }) {
     return native("/capture", method, { ...body, snapshots: shots });
   }
   const result = await native(path, method, body);
-  if (path.match(/^\/runs\/[^/]+$/) && result.status !== "running")
+  if (!flows.busy && path.match(/^\/runs\/[^/]+$/) && result.status !== "running")
     auditLocked = false;
   return result;
 }

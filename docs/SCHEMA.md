@@ -1,5 +1,7 @@
 # Evidence schema v1
 
+Recorded-flow screen runs retain schema version 1 and add optional `flow` metadata: `batchId`, `planName`, `screenName`, and zero-based `screenIndex` (0–19). It is saved in `run.json` and `metadata.json`; reports use the screen name as their title. History comparison distinguishes named flow screens, including different UI states at the same URL. Plans remain in Chrome local storage and are not included in AI prompts or exported report metadata; ordinary field values are used only during replay. Evidence follows the existing screenshot and optional page-code contracts.
+
 `run.json` is the complete local run. `findings.json` contains `{ schemaVersion: 1, findings: [...] }`; `board-export.json` is a portable export with run ID, device groupings, screenshots, findings, editable annotation bounds, and asset references. These are product formats, not arbitrary third-party board imports.
 
 The executable finding schema is [companion/schema.mjs](../companion/schema.mjs). Codex's stricter schema requires every field and disallows additional properties. The companion validates AI results and every edited/manual finding.

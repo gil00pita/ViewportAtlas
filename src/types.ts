@@ -65,6 +65,7 @@ export type Run = {
   id: string;
   url: string;
   title: string;
+  flow?: { batchId: string; planName: string; screenName: string; screenIndex: number };
   createdAt: string;
   status: "running" | "completed" | "cancelled" | "failed";
   progress: string;
@@ -88,6 +89,39 @@ export type Run = {
   codexOutput?: CodexOutputEntry[];
   codexOutputTruncated?: boolean;
   comparison?: { new: string[]; resolved: string[]; recurring: string[] };
+};
+export type FlowStep = {
+  id: string;
+  type: "click" | "input" | "scroll" | "navigate" | "checkpoint" | "blocked";
+  label: string;
+  url: string;
+  audit?: boolean;
+};
+export type FlowPlan = {
+  interruption?: { reason: string };
+  id: string;
+  name: string;
+  startUrl: string;
+  steps: FlowStep[];
+  error?: string;
+};
+export type FlowJob = {
+  id: string;
+  planId: string;
+  name: string;
+  status: "running" | "completed" | "failed" | "cancelled";
+  phase: "replay" | "reports";
+  progress: string;
+  stepIndex: number;
+  totalSteps: number;
+  error?: string;
+  screens: { stepId: string; label: string; runId?: string; status: string; error?: string }[];
+};
+export type FlowState = {
+  plans: FlowPlan[];
+  selectedId: string;
+  recording: { planId: string } | null;
+  job: FlowJob | null;
 };
 export type Health = {
   connected: boolean;
