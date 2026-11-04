@@ -1,0 +1,42 @@
+:root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #143a35; background: #f4f7f6; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input { font: inherit; }
+button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; border: 1px solid #c8d6d1; border-radius: 8px; background: #fff; color: #244c45; padding: 8px 12px; cursor: pointer; font-size: 13px; font-weight: 550; }
+button:hover { background: #edf5f2; }
+button:disabled { opacity: .55; cursor: default; }
+button:focus-visible, input:focus-visible { outline: 2px solid #008678; outline-offset: 3px; }
+::selection { background: #b0eee0; color: #143a35; }
+.desktop-app { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.desktop-header { display: flex; align-items: center; gap: 20px; padding: 16px 32px; background: #102e2a; color: #fff; }
+.desktop-brand { display: flex; align-items: center; gap: 12px; font-size: 19px; font-weight: 650; }
+.desktop-brand img { padding: 3px; border-radius: 8px; background: #fff; }
+.desktop-release { color: #c0d5cf; font-size: 13px; }
+.desktop-header .desktop-capture { margin-left: auto; background: #00c8b8; border-color: #00c8b8; color: #073b35; }
+.desktop-header .desktop-capture:hover { background: #2cdbca; }
+.desktop-main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 28px 32px 24px; }
+.desktop-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+h1 { font-size: 25px; line-height: 1.3; letter-spacing: -.025em; margin: 0 0 6px; font-weight: 650; }
+.desktop-heading p { margin: 0; font-size: 14px; line-height: 1.5; color: #526e67; }
+.desktop-address { display: flex; gap: 12px; align-items: center; padding: 6px 8px 6px 16px; border: 1px solid #c8d6d1; border-radius: 10px; background: #fff; }
+.desktop-address input { flex: 1; min-width: 0; border: none; background: transparent; color: #143a35; padding: 10px 2px; font-size: 14px; }
+.desktop-address button { background: #e2f4ed; border-color: #b6d8cc; }
+.desktop-tools { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
+.desktop-sync { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #006052; font-weight: 600; }
+.desktop-status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.desktop-sync.is-paused { color: #96451f; }
+.desktop-tools-help { margin-right: auto; font-size: 12px; color: #526e67; }
+.desktop-message { min-height: 44px; display: flex; align-items: center; max-width: 100%; font-size: 12px; color: #526e67; line-height: 1.5; overflow-wrap: anywhere; }
+.desktop-message[role="alert"] { color: #9b3c22; font-weight: 550; }
+.desktop-canvas { display: flex; flex: 1; min-height: 0; gap: 20px; align-items: flex-start; padding-top: 8px; width: 100%; }
+.desktop-device { min-width: 0; }
+.desktop-device-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.desktop-device-heading h2 { font-size: 14px; font-weight: 650; margin: 0; }
+.desktop-device-heading span { font-size: 11px; color: #526e67; font-variant-numeric: tabular-nums; }
+.desktop-browser-slot { width: 100%; background: white; outline: 1px solid #c8d6d1; color: #526e67; font-size: 12px; display: flex; justify-content: center; align-items: center; }
+.desktop-device-status { min-height: 32px; display: flex; align-items: center; font-size: 11px; color: #526e67; }
+.desktop-device-status.has-error { color: #9b3c22; }
+.desktop-footer { display: flex; align-items: center; gap: 20px; min-height: 58px; padding: 10px 32px; background: #eaf0ed; border-top: 1px solid #d3dfd9; font-size: 12px; color: #526e67; }
+.desktop-session { margin-left: auto; }
+.desktop-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+@media (max-width: 1150px) { .desktop-tools-help, .desktop-session { display: none; } .desktop-sync { margin-right: auto; } .desktop-device-heading { flex-direction: column; gap: 4px; } }

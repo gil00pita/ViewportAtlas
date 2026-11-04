@@ -1,5 +1,27 @@
 # Validation
 
+## Desktop preview — 3 November 2026
+
+Validated on macOS 27.2 Apple silicon, Node.js 26.3.1, and Electron 45.2.1. The first desktop migration slice is an unsigned developer preview; the complete extension audit workflow remains available separately.
+
+| Check | Result |
+| --- | --- |
+| Source desktop integration suite | 10 passed |
+| Packaged macOS application integration suite | 10 passed against the built `.app` |
+| Existing `npm test` suite | 59 passed |
+| Existing extension integration suite | 5 passed |
+| TypeScript and desktop/web/extension builds | Passed |
+| Electron Forge package and ZIP distribution | Passed on macOS arm64 |
+| Dependency audit | 0 known vulnerabilities after packaging dependency overrides |
+
+Desktop integration uses genuine native browser views and input delivery, a local React controlled-form fixture, and real PNG/PDF files. It verifies 393/820/1440 CSS widths and 2× density, layout at a smaller app-window size, source focus retention, selection replacement/deletion, Unicode and multiline edits, corresponding fields with different responsive IDs, ordinary UI clicks, capture masking and restoration (including nested private fields), ambiguous matches, pause/reload recovery, shared persistent login cookies, and app shutdown/restart. Unsupported/consequential actions stop synchronization and purchases execute once in the source.
+
+The packaged check caught a missing libvips runtime dependency that source tests could not expose. The Forge ASAR configuration now unpacks the `@img` native-library directories, and the full packaged suite verifies capture/PDF generation as well as startup. A synchronous startup entry registers schemes and paths before asynchronous dependencies load. Shutdown suppresses debugger-detach publications after the owning window is destroyed, addressing the reported `webContents` exception.
+
+CI is configured to build ZIP distributions and run both source and packaged desktop tests on macOS Apple silicon, Intel Mac, and Windows x64. Windows/Intel jobs have not been executed in this local workspace; platform support remains pending those results. No signing, notarization, installer publication, automatic updates, live AI analysis, or external board writes were performed. Desktop flow recording, complete interaction synchronization, full-page capture, and audit/history parity remain planned work.
+
+The records below describe earlier web/extension validation and remain separate from the desktop preview.
+
 Validated locally on macOS arm64 with Node.js 26.3.1 and Playwright Chromium 156 on 30 October 2026.
 
 ## Automated checks

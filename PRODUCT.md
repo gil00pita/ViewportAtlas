@@ -1,15 +1,15 @@
 # Viewport Atlas
 <!-- impeccable:product-schema 1 -->
 ## Platform
-web
+desktop preview (macOS and Windows targets), with the existing web workspace and Chrome extension retained during migration
 ## Stack
-Implementation choice: React and TypeScript workspace, Chrome Manifest V3 extension, Node.js local companion, Playwright Chromium captures, axe-core checks, PDFKit reports. No deployment: local companion and extension are explicitly requested.
+Implementation choice: Electron desktop runtime with sandboxed Chromium views, React and TypeScript workspace, Chrome Manifest V3 extension, Node.js local companion, Playwright Chromium captures, axe-core checks, PDFKit reports. The desktop migration starts with live views, synchronized text editing, persistent website sessions, and viewport evidence exports. Advanced synchronization, flows, audits, and release installers are later milestones. No cloud deployment.
 ## Product Purpose
 Responsive preview and evidence-based audits. Every screen. One clear picture.
 ## Users
 Website designers, developers, and reviewers working across mobile, tablet, and desktop viewports (inferred from the supplied workflow).
 ## Operating Context
-Local Chrome, a native messaging companion, and the user's installed and authenticated Codex CLI. Files remain local; selected evidence is sent for AI analysis only when enabled.
+The desktop preview runs its own Chromium without extension or companion setup. The existing complete audit workflow uses local Chrome or Playwright, the companion, and optional authenticated Codex CLI analysis. Files remain local; selected evidence is sent for AI analysis only when enabled.
 ## Capabilities and Constraints
 The attached brief and subsequent user requests are the implementation specification. Never fabricate audit results, measured scores, device testing, or successful integrations. Preserve site security headers. Chromium viewport emulation is not real-device or cross-engine testing. Audit the current page or explicitly selected screens in a recorded user flow; never crawl unrecorded pages. State and authentication may be shared in extension mode.
 ## Brand Commitments

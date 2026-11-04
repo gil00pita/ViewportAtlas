@@ -1,0 +1,31 @@
+name: Desktop preview
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:desktop
+      - run: npm run make:desktop
+      - run: npm run test:desktop:packaged
+      - uses: actions/upload-artifact@v4
+        with:
+          name: viewport-atlas-${{ matrix.os }}
+          path: out/make/**/*.zip
+          if-no-files-found: error
