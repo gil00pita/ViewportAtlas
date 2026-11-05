@@ -64,7 +64,7 @@ export async function captureWorkspace(workspace, destination) {
         const actual = overlay.result.value;
         if (overlay.exceptionDetails || actual?.width !== entry.device.width || actual?.height !== entry.device.height || actual?.density !== 2)
           throw new Error("Browser viewport dimensions do not match the requested capture.");
-        const shot = await pageCommand(entry, "Page.captureScreenshot", { format: "png", captureBeyondViewport: true,
+        const shot = await pageCommand(entry, "Page.captureScreenshot", { format: "png", captureBeyondViewport: false,
           clip: { x: actual.x, y: actual.y, width: entry.device.width, height: entry.device.height, scale: 1 } }, { timeout: 20000 });
         run.screenshots.push(await writeCapture(root, run.id, entry.device.id, {
           buffer: Buffer.from(shot.data, "base64"), width: entry.device.width, height: entry.device.height,

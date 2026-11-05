@@ -650,7 +650,13 @@ test("project sessions isolate sign-ins, clear-login controls, history and tempo
   await window.evaluate(()=>window.atlasDesktop.review('/flows/record','POST',{masks:''}));
   const recording=await window.evaluate(()=>window.atlasDesktop.review('/flows'));
   const closed=electron.waitForEvent('close');
-  if(process.platform==='win32')await execFileSafe('taskkill',['/PID',String(electron.process().pid),'/T','/F'],{timeout:10000});
+  if(process.platform==='win32'){
+    const pid=electron.process().pid;
+    const children=await electron.evaluate(({app},pid)=>app.getAppMetrics().map(metric=>metric.pid).filter(child=>child!==pid),pid);
+    // Stop main first, so renderer exits cannot save an ordinary sync interruption.
+    await execFileSafe('taskkill',['/PID',String(pid),'/F'],{timeout:10000});
+    for(const child of children){try{process.kill(child,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}}
+  }
   else electron.process().kill('SIGKILL');
   await closed;
   await launch();

@@ -104,7 +104,7 @@ export async function captureAuditDevice(workspace, device, profile, signal) {
     if (metrics.width !== device.width || metrics.height !== device.height || metrics.density !== 2) throw new Error("Browser dimensions do not match the requested evidence.");
     const height = profile.fullPage ? Math.min(Math.max(metrics.documentHeight, device.height), MAX_HEIGHT) : device.height;
     const shot = await pageCommand(entry, "Page.captureScreenshot", {
-      format: "png", captureBeyondViewport: true,
+      format: "png", captureBeyondViewport: profile.fullPage,
       clip: { x: profile.fullPage ? 0 : metrics.x, y: profile.fullPage ? 0 : metrics.y, width: device.width, height, scale: 1 },
     }, { signal, timeout: 20000 });
     signal?.throwIfAborted();
