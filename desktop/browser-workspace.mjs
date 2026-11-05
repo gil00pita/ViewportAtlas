@@ -1,4 +1,4 @@
-import { WebContentsView, screen } from "electron";
+import { WebContentsView } from "electron";
 import { randomUUID } from "node:crypto";
 import { browserEvidence } from "../companion/interaction.mjs";
 import { validateUrl } from "../companion/core.mjs";
@@ -24,6 +24,8 @@ export class BrowserWorkspace {
     this.source = "";
     this.sequence = 0;
     this.queue = Promise.resolve();
+    this.layoutQueue = Promise.resolve();
+    this.layoutRevision = 0;
     this.busy = false;
     this.generation = 0;
     this.initializing = true;
@@ -455,22 +457,34 @@ export class BrowserWorkspace {
         { this.setVisible(false); throw new Error("Browser views must fit inside the workspace."); }
       ids.add(slot.id);
     }
-    for (const slot of slots) {
-      const entry = this.views.get(slot.id);
-      entry.scale = Math.min(slot.width / entry.device.width, slot.height / entry.device.height, 1);
-      entry.bounds = { x: Math.round(slot.x), y: Math.round(slot.y),
-        width: Math.max(1, Math.round(entry.device.width * entry.scale)), height: Math.max(1, Math.round(entry.device.height * entry.scale)) };
-      entry.view.setBounds(this.captureBounds(entry));
-      if (!this.busy && !this.initializing) await this.emulate(entry);
-    }
-    this.setVisible(true);
+    const revision = ++this.layoutRevision;
+    this.layoutQueue = this.layoutQueue.catch(() => {}).then(async () => {
+      for (const slot of slots) {
+        if (this.closed || revision !== this.layoutRevision) return;
+        const entry = this.views.get(slot.id);
+        const scale = Math.min(slot.width / entry.device.width, slot.height / entry.device.height, 1);
+        const bounds = { x: Math.round(slot.x), y: Math.round(slot.y),
+          width: Math.max(1, Math.round(entry.device.width * scale)), height: Math.max(1, Math.round(entry.device.height * scale)) };
+        const moved = !entry.bounds || Object.keys(bounds).some(key => bounds[key] !== entry.bounds[key]);
+        entry.scale = scale;
+        entry.bounds = bounds;
+        if (moved) entry.view.setBounds(this.captureBounds(entry));
+        if (!this.busy && !this.initializing && entry.emulatedScale !== scale) await this.emulate(entry);
+      }
+      if (!this.closed && revision === this.layoutRevision) this.setVisible(true);
+    });
+    let pending = this.layoutQueue;
+    await pending;
+    while (pending !== this.layoutQueue) { pending = this.layoutQueue; await pending; }
   }
 
-  emulate(entry, scale = entry.scale) {
-    return pageCommand(entry, "Emulation.setDeviceMetricsOverride", {
+  async emulate(entry, scale = entry.scale) {
+    const result = await pageCommand(entry, "Emulation.setDeviceMetricsOverride", {
       width: entry.device.width, height: entry.device.height, screenWidth: entry.device.width,
       screenHeight: entry.device.height, deviceScaleFactor: 2, mobile: false, scale,
     });
+    entry.emulatedScale = scale;
+    return result;
   }
 
   setPaused(paused) {
@@ -495,11 +509,7 @@ export class BrowserWorkspace {
     }
   }
   captureBounds(entry) {
-    if (!this.capturing) return entry.bounds;
-    // Match the screenshot's 2× pixels in native display units, including 1× displays.
-    const density = screen.getDisplayMatching(this.window.getBounds()).scaleFactor;
-    const width = Math.ceil(entry.device.width * 2 / density), height = Math.ceil(entry.device.height * 2 / density);
-    return { ...entry.bounds, x: -width - 20, width, height };
+    return this.capturing ? { ...entry.bounds, x: -entry.device.width - 20, width: entry.device.width, height: entry.device.height } : entry.bounds;
   }
   setPresentation(visible) {
     if (typeof visible !== "boolean") throw new Error("Invalid browser presentation state.");

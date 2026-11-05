@@ -48,11 +48,7 @@ async function launch() {
     .filter((view) => view.webContents)
     .map((view) => view.webContents.id));
   assert.equal(views.length, 3);
-  await until(async()=>{
-    const slots=await window.locator('[data-browser-slot]').evaluateAll(slots=>slots.map(slot=>slot.getBoundingClientRect().toJSON()));
-    const bounds=await electron.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.filter(view=>view.webContents).map(view=>view.getBounds()));
-    return slots.length===3&&slots.every((slot,index)=>['x','y','width','height'].every(key=>Math.abs(slot[key]-bounds[index][key])<=2)&&bounds[index].width>1);
-  },true,'Native browser layout did not match the workspace slots');
+  await settleLayout();
   await Promise.all(views.map(id=>inspect(id,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')));
   const state = await window.evaluate(() => window.atlasDesktop.state());
   assert((await Promise.all(views.map(id => inspect(id, 'location.href')))).every(url => url === state.url), 'Startup announced ready before its initial navigation completed');
@@ -64,7 +60,19 @@ async function inspect(id, expression) {
 async function values(selector = 'input[name="name"]') {
   return Promise.all(views.map((id) => inspect(id, `document.querySelector(${JSON.stringify(selector)})?.value`)));
 }
+async function settleLayout(){
+  await window.evaluate(async()=>{
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    await window.atlasDesktop.layout([...document.querySelectorAll('[data-browser-slot]')].map(slot=>{const {x,y,width,height}=slot.getBoundingClientRect();return {id:slot.dataset.browserSlot,x,y,width,height};}));
+  });
+  await until(async()=>{
+    const slots=await window.locator('[data-browser-slot]').evaluateAll(slots=>slots.map(slot=>slot.getBoundingClientRect().toJSON()));
+    const bounds=await electron.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.filter(view=>view.webContents).map(view=>view.getBounds()));
+    return slots.length===3&&slots.every((slot,index)=>['x','y','width','height'].every(key=>Math.abs(slot[key]-bounds[index][key])<=2)&&bounds[index].width>1);
+  },true,'Native browser layout did not match the workspace slots');
+}
 async function click(id, selector) {
+  await settleLayout();
   await until(() => window.evaluate(() => window.atlasDesktop.state()), state => state.pending === 0, 'Earlier interactions were not acknowledged before switching controls');
   await electron.evaluate(({ BrowserWindow, app }) => {
     if(BrowserWindow.getAllWindows()[0].isFocused())return;
@@ -166,6 +174,31 @@ test("resizing the workspace fits every live view without changing responsive br
   } finally {
     await electron.evaluate(({ BrowserWindow }, [width, height]) => BrowserWindow.getAllWindows()[0].setContentSize(width, height), original);
     await until(() => window.evaluate(() => innerWidth), original[0]);
+    await settleLayout();
+  }
+});
+
+test('a newer browser layout wins when an earlier emulation acknowledgement is delayed',async()=>{
+  await settleLayout();
+  const latest=await window.locator('[data-browser-slot]').evaluateAll(slots=>slots.map(slot=>{const {x,y,width,height}=slot.getBoundingClientRect();return {id:slot.dataset.browserSlot,x,y,width,height};}));
+  await window.evaluate(slots=>window.atlasDesktop.layout(slots),latest);
+  const expected=await electron.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.filter(view=>view.webContents).map(view=>view.getBounds()));
+  await electron.evaluate(({webContents},id)=>{
+    const api=webContents.fromId(id).debugger,send=api.sendCommand;
+    globalThis.__atlasLayoutDelay={api,send,started:false};
+    api.sendCommand=async function(method,params){
+      if(method==='Emulation.setDeviceMetricsOverride'&&!globalThis.__atlasLayoutDelay.started){globalThis.__atlasLayoutDelay.started=true;await new Promise(resolve=>setTimeout(resolve,70));}
+      return send.call(this,method,params);
+    };
+  },views[0]);
+  try{
+    const earlier=window.evaluate(slots=>window.atlasDesktop.layout(slots),latest.map(slot=>({...slot,width:slot.width*.8,height:slot.height*.8})));
+    await until(()=>electron.evaluate(()=>globalThis.__atlasLayoutDelay.started),true);
+    await Promise.all([earlier,window.evaluate(slots=>window.atlasDesktop.layout(slots),latest)]);
+    assert.deepEqual(await electron.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.filter(view=>view.webContents).map(view=>view.getBounds())),expected,'A stale layout overwrote the latest native geometry');
+  }finally{
+    await electron.evaluate(()=>{const {api,send}=globalThis.__atlasLayoutDelay;api.sendCommand=send;delete globalThis.__atlasLayoutDelay;});
+    await window.evaluate(slots=>window.atlasDesktop.layout(slots),latest);
   }
 });
 
@@ -201,7 +234,7 @@ test("masked 2× viewport screenshots and a real PDF export through the desktop 
   assert(await electron.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.filter(v=>v.webContents).every(view=>{
     const bounds=view.getBounds();return !view.getVisible() || bounds.x+ bounds.width<=0;
   })), 'Capturing browser surfaces covered the review controls');
-  assert.deepEqual(await electron.evaluate(({BrowserWindow,screen})=>{const owner=BrowserWindow.getAllWindows()[0],density=screen.getDisplayMatching(owner.getBounds()).scaleFactor;return owner.contentView.children.filter(view=>view.webContents).map(view=>{const {width,height}=view.getBounds();return [width*density,height*density];});}),[[786,1704],[1640,2360],[2880,1800]],'Capture surfaces did not provide full 2× device pixels');
+  assert.deepEqual(await electron.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.filter(view=>view.webContents).map(view=>{const {width,height}=view.getBounds();return [width,height];})),[[393,852],[820,1180],[1440,900]],'Capture surfaces did not match full device dimensions');
   const result = await capture;
   assert(result?.runId);
   const run = JSON.parse(await readFile(join(result.root, "run.json"), "utf8"));
