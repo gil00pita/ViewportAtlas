@@ -79,11 +79,24 @@ async function click(id, selector) {
     const wc = webContents.fromId(id);
     const view = BrowserWindow.getAllWindows()[0].contentView.children.find((view) => view.webContents?.id === id);
     wc.focus();
-    const point = await wc.executeJavaScript(`(async () => { const el = document.querySelector(${JSON.stringify(selector)}); el.scrollIntoView({block:'center'}); await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); const rect = el.getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, width: innerWidth }; })()`);
+    const point = await wc.executeJavaScript(`(async () => {
+      const selector=${JSON.stringify(selector)},el=document.querySelector(selector);
+      el.scrollIntoView({block:'center'});
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      globalThis.__atlasNativeClick=null;
+      document.addEventListener('mouseup',event=>{const target=event.composedPath()[0];globalThis.__atlasNativeClick={matched:Boolean(target.closest?.(selector)),id:target.id,tag:target.tagName,x:event.clientX,y:event.clientY};},{once:true,capture:true});
+      const rect=el.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2,width:innerWidth};
+    })()`);
     const scale = view.getBounds().width / point.width;
     const previousUrl=wc.getURL();
     for (const type of ["mouseDown", "mouseUp"]) wc.sendInputEvent({ type, x: Math.round(point.x * scale), y: Math.round(point.y * scale), button: "left", clickCount: 1 });
-    try { await wc.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))'); }
+    try {
+      await wc.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+      if(wc.getURL()===previousUrl&&!wc.isLoadingMainFrame()){
+        const actual=await wc.executeJavaScript('globalThis.__atlasNativeClick');
+        if(!actual?.matched)throw new Error(`Native click missed ${selector}: ${JSON.stringify({point,scale,bounds:view.getBounds(),actual})}`);
+      }
+    }
     catch(error){if(!/WebFrame was removed|Render frame was disposed|context.*destroyed/i.test(error.message)||(!wc.isLoadingMainFrame()&&wc.getURL()===previousUrl))throw error;}
   }, { id, selector });
   await until(() => window.evaluate(() => window.atlasDesktop.state()), state => state.pending === 0, 'Control interaction was not acknowledged');
@@ -188,7 +201,7 @@ test("masked 2× viewport screenshots and a real PDF export through the desktop 
   assert(await electron.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.filter(v=>v.webContents).every(view=>{
     const bounds=view.getBounds();return !view.getVisible() || bounds.x+ bounds.width<=0;
   })), 'Capturing browser surfaces covered the review controls');
-  assert.deepEqual(await electron.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.filter(view=>view.webContents).map(view=>{const {width,height}=view.getBounds();return [width,height];})),[[393,852],[820,1180],[1440,900]],'Capture surfaces did not match full device dimensions');
+  assert.deepEqual(await electron.evaluate(({BrowserWindow,screen})=>{const owner=BrowserWindow.getAllWindows()[0],density=screen.getDisplayMatching(owner.getBounds()).scaleFactor;return owner.contentView.children.filter(view=>view.webContents).map(view=>{const {width,height}=view.getBounds();return [width*density,height*density];});}),[[786,1704],[1640,2360],[2880,1800]],'Capture surfaces did not provide full 2× device pixels');
   const result = await capture;
   assert(result?.runId);
   const run = JSON.parse(await readFile(join(result.root, "run.json"), "utf8"));

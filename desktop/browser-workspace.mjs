@@ -1,4 +1,4 @@
-import { WebContentsView } from "electron";
+import { WebContentsView, screen } from "electron";
 import { randomUUID } from "node:crypto";
 import { browserEvidence } from "../companion/interaction.mjs";
 import { validateUrl } from "../companion/core.mjs";
@@ -495,8 +495,11 @@ export class BrowserWorkspace {
     }
   }
   captureBounds(entry) {
-    // Capture emulation uses scale 1, so its native surface must have full device dimensions.
-    return this.capturing ? { ...entry.bounds, x: -entry.device.width - 20, width: entry.device.width, height: entry.device.height } : entry.bounds;
+    if (!this.capturing) return entry.bounds;
+    // Match the screenshot's 2× pixels in native display units, including 1× displays.
+    const density = screen.getDisplayMatching(this.window.getBounds()).scaleFactor;
+    const width = Math.ceil(entry.device.width * 2 / density), height = Math.ceil(entry.device.height * 2 / density);
+    return { ...entry.bounds, x: -width - 20, width, height };
   }
   setPresentation(visible) {
     if (typeof visible !== "boolean") throw new Error("Invalid browser presentation state.");
