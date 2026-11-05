@@ -101,6 +101,7 @@ export function installRecorder(evidence, binding) {
       send(data);
     });
   }, true);
+  document.addEventListener("pointerout", event => { if (event.isTrusted) state.hover = ""; }, true);
   document.addEventListener("pointerover", event => {
     if (!event.isTrusted || state.applying) return;
     const el = element(event), target = targetOf(el);

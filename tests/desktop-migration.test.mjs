@@ -31,6 +31,18 @@ test('clicking an already-focused field still identifies the interaction source'
  }finally{await browser.close();}
 });
 
+test('returning to the same hover control emits a new interaction',async()=>{
+ const browser=await chromium.launch();
+ try{
+  const page=await browser.newPage();const actions=[];
+  await page.exposeFunction('atlasTestAction',raw=>actions.push(JSON.parse(raw)));
+  await page.setContent('<button id="menu" type="button">Show menu</button><input id="name" aria-label="Name" style="display:block;margin-top:40px">');
+  await page.evaluate(`(${installRecorder})(${browserEvidence},'atlasTestAction')`);
+  await page.hover('#menu');await page.hover('#name');await page.hover('#menu');
+  assert.equal(actions.filter(action=>action.type==='hover').length,2,'Re-entering a control was incorrectly deduplicated');
+ }finally{await browser.close();}
+});
+
 test('a trusted DOM drop records its outcome without treating the trailing click as an independent action',async()=>{
  const browser=await chromium.launch();
  try{

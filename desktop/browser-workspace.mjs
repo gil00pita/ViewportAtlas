@@ -155,6 +155,8 @@ export class BrowserWorkspace {
     let action;
     try { action = JSON.parse(payload); } catch { return; }
     if (!["focus", "blur", "edit", "control", "click", "double-click", "scroll", "key", "hover", "drag", "navigate", "blocked"].includes(action.type)) return;
+    // Losing focus in an old view is not a new interaction source.
+    if (action.type === "blur" && source.device.id !== this.source) return;
     if (this.paused) {
       if ((action.type === "edit" && !action.selectionOnly) || ["control", "navigate"].includes(action.type)) this.failure = null;
       if (!this.problem) this.interrupt(source, "Views were used independently while paused. Reload views to restart synchronization.");
@@ -186,6 +188,7 @@ export class BrowserWorkspace {
       if (this.paused || this.generation !== generation) return;
       for (const follower of this.views.values()) {
         if (this.paused || this.generation !== generation) return;
+        if (action.type === "blur" && this.source !== source.device.id) break;
         if (follower === source || this.excluded.has(follower.device.id)) continue;
         follower.status = "applying";
         this.publish();

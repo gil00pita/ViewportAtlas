@@ -35,6 +35,11 @@ async function launch() {
   electron = await _electron.launch({ ...(executablePath ? { executablePath } : {}), args: launchArgs,
     env: childEnv, timeout: 30000 });
   window = await electron.firstWindow();
+  const dimensions=(process.env.ATLAS_DESKTOP_TEST_WINDOW_SIZE || '1500x1000').split('x').map(Number);
+  if(dimensions.length!==2||dimensions.some(size=>!Number.isInteger(size)||size<600||size>3840))throw new Error('Choose desktop test dimensions between 600 and 3840.');
+  // Window creation is constrained by the hosted runner's small work area.
+  // Set the content size explicitly so native controls have repeatable targets.
+  await electron.evaluate(({BrowserWindow},{dimensions,custom})=>{const owner=BrowserWindow.getAllWindows()[0];if(custom)owner.setMinimumSize(0,0);owner.setContentSize(...dimensions);},{dimensions,custom:Boolean(process.env.ATLAS_DESKTOP_TEST_WINDOW_SIZE)});
   await window.waitForFunction(() => window.atlasDesktop);
   await until(() => window.evaluate(() => window.atlasDesktop.state()), (state) => state.views.length === 3 && !state.busy && state.views.every((view) => view.status === "ready"), "Desktop did not load");
   await until(() => window.locator(".desktop-device-status").allTextContents(), (statuses) => statuses.length === 3 && statuses.every((status) => status === "Ready to follow"), "Workspace UI did not finish loading");
@@ -56,6 +61,7 @@ async function values(selector = 'input[name="name"]') {
 async function click(id, selector) {
   await until(() => window.evaluate(() => window.atlasDesktop.state()), state => state.pending === 0, 'Earlier interactions were not acknowledged before switching controls');
   await electron.evaluate(({ BrowserWindow, app }) => {
+    if(BrowserWindow.getAllWindows()[0].isFocused())return;
     app.show?.();
     app.focus({ steal: true });
     BrowserWindow.getAllWindows()[0].show();
@@ -637,4 +643,16 @@ test("project sessions isolate sign-ins, clear-login controls, history and tempo
   await launch();
   const recovered=await window.evaluate(()=>window.atlasDesktop.review('/flows'));
   assert.equal(recovered.recording,null);assert.equal(recovered.plans.find(plan=>plan.id===recording.selectedId).interruption.reason,'app_restarted');
+});
+
+test('a late blur from the previous view preserves the active source and keyboard focus',async()=>{
+  await window.evaluate(url=>window.atlasDesktop.navigate(url),url);
+  await click(views[0],'input[name="name"]');
+  await click(views[2],'input[name="name"]');
+  assert.equal((await window.evaluate(()=>window.atlasDesktop.state())).source,'desktop');
+  await inspect(views[0],'document.querySelector("input[name=name]").blur();new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  await until(()=>window.evaluate(()=>window.atlasDesktop.state()),state=>state.pending===0);
+  assert.equal((await window.evaluate(()=>window.atlasDesktop.state())).source,'desktop','Blur incorrectly claimed source ownership');
+  assert.equal(await inspect(views[2],'document.activeElement?.name'),'name','A stale blur removed focus from the new source');
+  await window.evaluate(url=>window.atlasDesktop.navigate(url),url);
 });
