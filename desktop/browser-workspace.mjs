@@ -495,7 +495,8 @@ export class BrowserWorkspace {
     }
   }
   captureBounds(entry) {
-    return this.capturing ? { ...entry.bounds, x: -entry.bounds.width - 20 } : entry.bounds;
+    // Capture emulation uses scale 1, so its native surface must have full device dimensions.
+    return this.capturing ? { ...entry.bounds, x: -entry.device.width - 20, width: entry.device.width, height: entry.device.height } : entry.bounds;
   }
   setPresentation(visible) {
     if (typeof visible !== "boolean") throw new Error("Invalid browser presentation state.");

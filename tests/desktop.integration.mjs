@@ -188,6 +188,7 @@ test("masked 2× viewport screenshots and a real PDF export through the desktop 
   assert(await electron.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.filter(v=>v.webContents).every(view=>{
     const bounds=view.getBounds();return !view.getVisible() || bounds.x+ bounds.width<=0;
   })), 'Capturing browser surfaces covered the review controls');
+  assert.deepEqual(await electron.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.filter(view=>view.webContents).map(view=>{const {width,height}=view.getBounds();return [width,height];})),[[393,852],[820,1180],[1440,900]],'Capture surfaces did not match full device dimensions');
   const result = await capture;
   assert(result?.runId);
   const run = JSON.parse(await readFile(join(result.root, "run.json"), "utf8"));
