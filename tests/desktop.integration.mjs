@@ -7,6 +7,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import sharp from "sharp";
+import { execFileSafe } from "../companion/codex.mjs";
 
 let electron, window, server, root, url, views;
 const env = { ...process.env };
@@ -26,9 +27,12 @@ async function until(read, expected, message = "Condition did not settle", timeo
 }
 async function launch() {
   const executablePath = process.env.ATLAS_DESKTOP_EXECUTABLE;
+  const displayScale = process.env.ATLAS_DESKTOP_TEST_SCALE_FACTOR;
+  if (displayScale && !['1', '2'].includes(displayScale)) throw new Error('Choose display scale 1 or 2 for desktop tests.');
+  const launchArgs = [...(displayScale ? [`--force-device-scale-factor=${displayScale}`] : []), ...(executablePath ? [] : [resolve('desktop/entry.cjs')])];
   const childEnv = { ...env, ATLAS_DESKTOP_STATE_DIR: join(root, "state"), ATLAS_CODEX_EXECUTABLE: join(root, "codex-fixture.cjs"), ATLAS_CODEX_TEST_PROMPT: join(root, "ai-prompt.txt") };
   if (process.env.ATLAS_INSTALLED_SMOKE) childEnv.PATH = process.platform === 'win32' ? `${process.env.SystemRoot}\\system32;${process.env.SystemRoot}` : '/usr/bin:/bin:/usr/sbin:/sbin';
-  electron = await _electron.launch({ ...(executablePath ? { executablePath } : {}), args: executablePath ? [] : [resolve("desktop/entry.cjs")],
+  electron = await _electron.launch({ ...(executablePath ? { executablePath } : {}), args: launchArgs,
     env: childEnv, timeout: 30000 });
   window = await electron.firstWindow();
   await window.waitForFunction(() => window.atlasDesktop);
@@ -41,6 +45,7 @@ async function launch() {
   assert.equal(views.length, 3);
   const state = await window.evaluate(() => window.atlasDesktop.state());
   assert((await Promise.all(views.map(id => inspect(id, 'location.href')))).every(url => url === state.url), 'Startup announced ready before its initial navigation completed');
+  if (process.env.CI) console.log('Desktop display:', await electron.evaluate(({screen,BrowserWindow})=>({displayScale:screen.getDisplayMatching(BrowserWindow.getAllWindows()[0].getBounds()).scaleFactor,window:BrowserWindow.getAllWindows()[0].getContentSize()})));
 }
 async function inspect(id, expression) {
   return electron.evaluate(({ webContents }, { id, expression }) => webContents.fromId(id).executeJavaScript(expression), { id, expression });
@@ -49,6 +54,7 @@ async function values(selector = 'input[name="name"]') {
   return Promise.all(views.map((id) => inspect(id, `document.querySelector(${JSON.stringify(selector)})?.value`)));
 }
 async function click(id, selector) {
+  await until(() => window.evaluate(() => window.atlasDesktop.state()), state => state.pending === 0, 'Earlier interactions were not acknowledged before switching controls');
   await electron.evaluate(({ BrowserWindow, app }) => {
     app.show?.();
     app.focus({ steal: true });
@@ -60,11 +66,12 @@ async function click(id, selector) {
   await electron.evaluate(async ({ webContents, BrowserWindow }, { id, selector }) => {
     const wc = webContents.fromId(id);
     const view = BrowserWindow.getAllWindows()[0].contentView.children.find((view) => view.webContents?.id === id);
-    const point = await wc.executeJavaScript(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); el.scrollIntoView({block:'center'}); const rect = el.getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, width: innerWidth }; })()`);
     wc.focus();
+    const point = await wc.executeJavaScript(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); el.scrollIntoView({block:'center'}); const rect = el.getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, width: innerWidth }; })()`);
     const scale = view.getBounds().width / point.width;
     for (const type of ["mouseDown", "mouseUp"]) wc.sendInputEvent({ type, x: Math.round(point.x * scale), y: Math.round(point.y * scale), button: "left", clickCount: 1 });
   }, { id, selector });
+  await until(() => window.evaluate(() => window.atlasDesktop.state()), state => state.pending === 0, 'Control interaction was not acknowledged');
 }
 async function insert(id, text) {
   await electron.evaluate(async ({ webContents }, { id, text }) => { await webContents.fromId(id).insertText(text); }, { id, text });
@@ -303,6 +310,7 @@ test("IME commits, responsive menus, open-shadow input, hover, Escape and DOM dr
   await Promise.all(views.map(id=>inspect(id,'(()=>{const d=document.createElement("div");d.setAttribute("role","dialog");d.textContent="Dialog";document.body.append(d)})()')));
   await electron.evaluate(({webContents},id)=>{for(const type of ['keyDown','keyUp'])webContents.fromId(id).sendInputEvent({type,keyCode:'Escape'});},views[0]);
   await until(()=>Promise.all(views.map(id=>inspect(id,'Boolean(document.querySelector("[role=dialog]"))'))),[false,false,false]);
+  await until(()=>window.evaluate(()=>window.atlasDesktop.state()),state=>state.pending===0,'Escape was not acknowledged before hover');
   await electron.evaluate(async({webContents,BrowserWindow},id)=>{
     const wc=webContents.fromId(id);const rect=await wc.executeJavaScript('(()=>{const e=document.querySelector("#hover-control");e.scrollIntoView({block:"center"});const r=e.getBoundingClientRect();return {x:r.x+5,y:r.y+5}})()');
     const view=BrowserWindow.getAllWindows()[0].contentView.children.find(v=>v.webContents?.id===id);const scale=view.getBounds().width/await wc.executeJavaScript('innerWidth');
@@ -622,7 +630,10 @@ test("project sessions isolate sign-ins, clear-login controls, history and tempo
   assert.equal((await cookies()).length, 0, "Temporary cookies survived restart");
   await window.evaluate(()=>window.atlasDesktop.review('/flows/record','POST',{masks:''}));
   const recording=await window.evaluate(()=>window.atlasDesktop.review('/flows'));
-  const closed=electron.waitForEvent('close');electron.process().kill('SIGKILL');await closed;
+  const closed=electron.waitForEvent('close');
+  if(process.platform==='win32')await execFileSafe('taskkill',['/PID',String(electron.process().pid),'/T','/F'],{timeout:10000});
+  else electron.process().kill('SIGKILL');
+  await closed;
   await launch();
   const recovered=await window.evaluate(()=>window.atlasDesktop.review('/flows'));
   assert.equal(recovered.recording,null);assert.equal(recovered.plans.find(plan=>plan.id===recording.selectedId).interruption.reason,'app_restarted');
