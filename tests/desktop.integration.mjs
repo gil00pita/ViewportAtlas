@@ -78,7 +78,7 @@ async function click(id, selector) {
     const previousUrl=wc.getURL();
     for (const type of ["mouseDown", "mouseUp"]) wc.sendInputEvent({ type, x: Math.round(point.x * scale), y: Math.round(point.y * scale), button: "left", clickCount: 1 });
     try { await wc.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))'); }
-    catch(error){if(!/WebFrame was removed|context.*destroyed/i.test(error.message)||(!wc.isLoadingMainFrame()&&wc.getURL()===previousUrl))throw error;}
+    catch(error){if(!/WebFrame was removed|Render frame was disposed|context.*destroyed/i.test(error.message)||(!wc.isLoadingMainFrame()&&wc.getURL()===previousUrl))throw error;}
   }, { id, selector });
   await until(() => window.evaluate(() => window.atlasDesktop.state()), state => state.pending === 0, 'Control interaction was not acknowledged');
 }
@@ -327,7 +327,8 @@ test("IME commits, responsive menus, open-shadow input, hover, Escape and DOM dr
     const view=BrowserWindow.getAllWindows()[0].contentView.children.find(v=>v.webContents?.id===id);const scale=view.getBounds().width/await wc.executeJavaScript('innerWidth');
     wc.sendInputEvent({type:'mouseMove',x:Math.round(rect.x*scale),y:Math.round(rect.y*scale)});
   },views[0]);
-  await until(()=>Promise.all(views.map(id=>inspect(id,'getComputedStyle(document.querySelector("#hover-control")).backgroundColor'))),Array(3).fill('rgb(0, 255, 0)'));
+  try { await until(()=>Promise.all(views.map(id=>inspect(id,'getComputedStyle(document.querySelector("#hover-control")).backgroundColor'))),Array(3).fill('rgb(0, 255, 0)')); }
+  catch(error){assert.fail(`${error.message}: ${JSON.stringify({state:await window.evaluate(()=>window.atlasDesktop.state()),views:await Promise.all(views.map(id=>inspect(id,'({scrollY,hovered:document.querySelector(":hover")?.id,rect:document.querySelector("#hover-control").getBoundingClientRect().toJSON()})')))})}`);}
   await electron.evaluate(async({webContents,BrowserWindow},id)=>{
     const wc=webContents.fromId(id);const rects=await wc.executeJavaScript('(()=>{document.querySelector("#drag-item").scrollIntoView({block:"center"});const point=s=>{const r=document.querySelector(s).getBoundingClientRect();return {x:r.x+5,y:r.y+5}};return {source:point("#drag-item"),target:point("#drop-zone")}})()');
     const view=BrowserWindow.getAllWindows()[0].contentView.children.find(v=>v.webContents?.id===id);const scale=view.getBounds().width/await wc.executeJavaScript('innerWidth');
