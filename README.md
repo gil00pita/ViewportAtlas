@@ -6,35 +6,48 @@
 
 ### Standalone desktop preview
 
-The first desktop migration milestone is available for local development on macOS and Windows:
+The desktop implementation includes live responsive browsing, shared audit/review controls, journey recording/replay, projects, and data transfer. macOS and Windows are build targets; release verification remains open.
 
 ```sh
 npm install
 npm run desktop
 ```
 
-The app bundles Electron's Chromium runtime and opens three real browser views (393 × 852, 820 × 1180, and 1440 × 900). It runs without the extension, Native Messaging registration, the loopback companion, or a separate Playwright browser installation. Development requires Node.js 22.12+; packaged apps include the runtime.
+The app bundles Electron's Chromium runtime and opens three real browser views (393 × 852, 820 × 1180, and 1440 × 900). It runs without the extension, Native Messaging registration, the loopback companion, or a separate Playwright browser installation. Development requires Node.js 22.13+; packaged apps include the runtime.
 
-Open the synthetic example or enter an HTTP(S) URL. Click an ordinary text field in any view and type directly: counterpart focus and field edits follow across the other views. Live edits include selection replacement, deletion, multiline text, and committed Unicode text, including controlled React inputs. The source keeps keyboard focus. Website cookies and storage use an application-owned persistent session shared by the three views; they do not import Chrome sign-ins.
+Open the synthetic example or enter an HTTP(S) URL. Interact directly in any view: supported ordinary controls follow across the others while the source keeps keyboard focus. The implementation includes text/selection edits, committed Unicode input, React controlled fields, checkbox/radio/select and value controls, document/nested scrolling, navigation/history, hover, plain contenteditable, DOM drag/drop, and open-shadow controls. Real IME composition, native picker behavior, and platform shortcuts still require manual checks. Canvas, frame internals, closed-shadow controls, file uploads, and arbitrary custom gestures require independent preparation. Text is bounded to 4,000 characters per field.
 
-**Capture & export PDF** asks for an output folder and writes masked, current-viewport 2× PNGs, a PDF using the existing Original layout, and `run.json` into a fresh run directory. This preview does not run desktop audits or AI checks; its report explicitly marks them not run. Full-page capture, flow recording, comprehensive keyboard/widget/scroll/navigation synchronization, and the existing findings/history UI are later migration milestones. The web/extension workflow below remains available for those features.
+Synchronization pauses visibly for ambiguous or unsupported controls, a source handoff before the preceding action is acknowledged, and consequential actions. **Projects & data → Responsive counterparts** validates saved mappings and optional menu-preparation controls. Prepare the missing counterpart and use **Retry prepared counterparts** when offered, or exclude the affected view. Excluded views are omitted from synchronization and capture; including one reloads all pages. **Pause sync** permits independent preparation, but changing a view while paused requires **Reload views** before resuming. Reloading discards unsaved page edits. The footer displays observed synchronization p95 and sample count when available; this is not a performance-target claim.
 
-Synchronization pauses visibly for ambiguous or unsupported controls and consequential actions. Purchases and submissions run in the source only; private fields are excluded from mirroring. **Pause sync** permits independent preparation, but using a view while paused requires **Reload views** before synchronization can resume. Reloading discards unsaved page edits. Current text fields are bounded to 4,000 characters, and unsupported popups/downloads require another browser.
+Purchases, deletions, and submissions run once in the source by default. A session-only test mode can repeat them at an explicitly chosen test origin. Private fields remain excluded. These controls use conservative heuristics, and shared cookies do not isolate server actions. A supported popup requires explicit permission for the next window; finish sign-in and reload the views afterward. Website downloads require a chosen destination and run once.
+
+**Audit settings & reports** opens the shared review interface and hides the native browser views. Choose or edit profiles, categories, instructions, audit devices, and optional AI settings, then run a current-page audit against the live desktop session. Desktop audits support masked full-page 2× captures, real axe-core and metadata checks, findings editing, manual observations, merging, and persistent history. Native folder selection and PDF/JSON exports work without the companion; PDF preview and export support Original and A4 layouts. Codex analysis, optional page-code evidence, and Miro use shared adapters. Local CLI-fixture tests cover AI/page-code delivery and private-value exclusion; live desktop AI requests and Miro writes remain unverified.
+
+In the review interface, **Settings → Devices and saved sets** edits names and dimensions, removes devices, and saves or selects sets. **Return to live workspace** preserves the page and unsaved state when the device configuration is unchanged. Changed devices recreate the views and reopen the page, retaining project session cookies while discarding unsaved page state. Apply device changes before auditing those sizes.
+
+**Record journey** saves supported interactions in the selected project. **Mark screen** selects a state for audit; **Stop recording** retains the plan. Review and edit the plan in the shared **User flow** controls, then replay it across selected devices. Reports for captured screens remain available if replay is cancelled or later interrupted. An interrupted recording can resume with a recording-gap marker that must be reviewed and removed before replay. Consequential test-mode actions are excluded from saved journeys. Ordinary recorded form entries are saved locally; private fields and masked content are excluded.
+
+**Projects & data** creates or switches projects, chooses persistent or temporary browser sessions, clears the selected project's sign-ins, and exports or previews imported data. Responsive views share only their project's browser session; Chrome sign-ins are not imported. Temporary browser sessions clear when the app closes, while project settings and saved reports remain. Import validates settings/profiles/flows, mappings, and report references, shows counts and duplicates, and backs up current settings before applying changes. Browser-local extension data must first be exported; desktop cannot read Chrome storage automatically. Exported packages exclude cookies and browser credentials but contain ordinary recorded entries and references to report folders. Keep the evidence folders available; import does not move their originals.
+
+**Capture & export PDF** is a separate quick capture: it asks for an output folder and writes masked, current-viewport 2× PNGs, an Original-layout PDF, and `run.json` into a fresh directory registered in desktop history. It runs no audit or AI checks, and the report marks them not run.
+
+Versioned atomic preferences, project data, and the report registry live under Electron's `userData/reviews`; evidence stays in the selected report folder. Restart marks unfinished audits/flows interrupted and retains partial evidence without repeating actions automatically. The web/extension workflow below remains available during migration.
 
 ```sh
-npm run test:desktop       # real Electron integration checks
-npm run package:desktop    # an application folder for the current OS/CPU
-npm run make:desktop       # a ZIP containing that application
-npm run test:desktop:packaged # the same checks against the packaged application
+npm run test:desktop           # real Electron integration checks
+npm run package:desktop        # an application folder for the current OS/CPU
+npm run make:desktop           # ZIP + macOS DMG or Windows Squirrel artifacts
+npm run test:desktop:packaged   # checks against the packaged application
+npm run test:desktop:installed  # checks against the installed distribution
 ```
 
-Application folders and archives are written under `out/`. Windows and macOS builds have separate CI jobs, including Intel and Apple silicon Mac runners. Only local macOS Apple silicon execution has been verified in this workspace; Windows/Intel jobs must pass before claiming support is validated. Initial builds are unsigned developer previews. Signed installers and automatic updates belong to the release milestone.
+Artifacts are written under `out/`. Unsigned macOS Apple silicon `.app`, ZIP, and DMG builds were produced locally. CI targets Apple silicon, Intel Mac, and Windows x64; Windows/Intel execution remains unverified. Signed release CI and updater wiring target [gil00pita/ViewportAtlas Releases](https://github.com/gil00pita/ViewportAtlas/releases). Updates are disabled in unsigned/development builds. No signing secrets are configured and no release has been published. Signed upgrades and clean-machine installation remain release gates.
 
-See the [desktop migration plan](docs/DESKTOP-MIGRATION.md) for the full roadmap and acceptance contract.
+See [migration status and compatibility](docs/DESKTOP-MIGRATION.md), [release/signing instructions](docs/DESKTOP-RELEASE.md), and [validation evidence and limits](docs/VALIDATION.md). All 23 desktop integration checks pass against source, the packaged Mac app, and the app installed from its DMG with system-only PATH on Apple silicon. Windows/Intel and the remaining manual/signing/upgrade gates are still unverified.
 
 ### Existing web workspace
 
-Requirements: Node.js 22.12+, npm, and macOS, Linux, or Windows for standalone mode. Native Messaging installation supports Google Chrome on macOS and Linux.
+Requirements: Node.js 22.13+, npm, and macOS, Linux, or Windows for standalone mode. Native Messaging installation supports Google Chrome on macOS and Linux.
 
 ```sh
 npm install
@@ -156,7 +169,7 @@ Captures render lossless PNGs at 2× pixel density in standalone and Chrome exte
 
 Passwords, payment autocomplete fields, and `[data-sensitive]` regions are masked. Add CSS selectors under **Advanced settings**. Invalid mask selectors fail the capture rather than producing unmasked evidence. Masked heading/link content is excluded from structured evidence; common sensitive URL query keys are redacted. These controls cannot automatically identify all sensitive content, including canvas-rendered data and unknown custom fields: review captures before AI or board export.
 
-Profile and device preferences live in this browser's localStorage. Audit files and a run registry persist on disk. Standalone browser authentication state is in memory and is cleared when the companion stops. Native transport authentication is kept in a mode-0600 file under `~/.viewport-atlas`; it is not bundled in the extension.
+In the web/extension workspace, profile and device preferences live in the browser's localStorage, while audit files and a run registry persist on disk. Standalone web browser authentication state is in memory and is cleared when the companion stops. Desktop preferences and its report registry persist under Electron's `userData/reviews`, with website cookies in its separate persistent browser session. Native transport authentication is kept in a mode-0600 file under `~/.viewport-atlas`; it is not bundled in the extension.
 
 Environment options:
 

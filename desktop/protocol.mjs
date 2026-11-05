@@ -16,7 +16,7 @@ export function assetHandler(host, root, { example = false } = {}) {
         "Content-Type": types[extname(file)] || "application/octet-stream",
         "Content-Security-Policy": example
           ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'"
-          : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'",
+          : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' atlas://evidence data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'",
         "X-Content-Type-Options": "nosniff",
       } });
     } catch { return new Response(null, { status: 404 }); }

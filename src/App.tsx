@@ -67,11 +67,12 @@ import {
   Moon,
   Sun,
 } from "lucide-react";
-import { api, assetUrl, downloadJson, extensionMode, health } from "./api";
+import { api, assetUrl, downloadJson, extensionMode, desktopMode, health } from "./api";
 import { CodexReport } from "./CodexReport";
 import { FlowPlanner } from "./FlowPlanner";
 import { useFlowPlanner } from "./use-flow-planner";
 import { exportPdfReport, type PdfLayout } from "./pdf-report";
+import { DeviceSettings } from "./desktop/DeviceSettings";
 import {
   DEVICES,
   CATEGORIES,
@@ -112,6 +113,7 @@ function load<T>(key: string, fallback: T): T {
 }
 function save(key: string, value: unknown) {
   localStorage.setItem(key, JSON.stringify(value));
+  if (desktopMode) void window.atlasDesktop.preference(key, value).catch(error => window.dispatchEvent(new CustomEvent("atlas-storage-error", { detail: String(error) })));
 }
 const deviceIcon = (d: Device, size = 16) =>
   d.mobile ? (
@@ -170,7 +172,7 @@ function Toggle({
     </button>
   );
 }
-function App() {
+function App({ desktopUrl, onReturnToBrowser }: { desktopUrl?: string; onReturnToBrowser?: () => void } = {}) {
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     load<string>("atlas-theme", "light") === "dark" ? "dark" : "light",
   );
@@ -179,7 +181,7 @@ function App() {
     save("atlas-theme", theme);
   }, [theme]);
   const [page, setPage] = useState<Page>("workspace");
-  const [tab, setTab] = useState<"views" | "findings">(launchRun ? "findings" : "views");
+  const [tab, setTab] = useState<"views" | "findings">(launchRun || desktopMode ? "findings" : "views");
   const [auditMode, setAuditMode] = useState<"page" | "flow">(() => load("atlas-audit-mode", "page"));
   const [status, setStatus] = useState<Health | null>(null);
   const [connectionError, setConnectionError] = useState("");
@@ -199,7 +201,8 @@ function App() {
   const profile =
     profiles.find((p) => p.id === profileId) || profiles[0] || PROFILES[0];
   const [views, setViews] = useState<View[]>([]);
-  const [url, setUrl] = useState(() => launchUrl || (extensionMode ? "" : load("atlas-url", "")));
+  const [workspaceUrl, setUrl] = useState(() => desktopUrl || launchUrl || (extensionMode ? "" : load("atlas-url", "")));
+  const url = desktopUrl || workspaceUrl;
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
   const [activeDevice, setActiveDevice] = useState(devices[0]?.id || "");
@@ -273,7 +276,12 @@ function App() {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setToast(""), 6000);
   }, []);
-  const flow = useFlowPlanner(extensionMode, notify);
+  const flow = useFlowPlanner(extensionMode || desktopMode, notify);
+  useEffect(() => {
+    const onError = (event: Event) => notify((event as CustomEvent<string>).detail);
+    window.addEventListener("atlas-storage-error", onError);
+    return () => window.removeEventListener("atlas-storage-error", onError);
+  }, [notify]);
   const sidebarInitialized = useRef(false);
   useEffect(() => { save("atlas-audit-mode", auditMode); }, [auditMode]);
   useEffect(() => { setConsent(false); }, [auditMode, flow.state?.selectedId]);
@@ -310,7 +318,7 @@ function App() {
     save("atlas-device-sets", deviceSets);
   }, [deviceSets]);
   useEffect(() => {
-    if (connected && !url) {
+    if (connected && !url && !desktopMode) {
       const initial = extensionMode ? "" : `${location.origin}/demo.html`;
       if (initial) {
         setUrl(initial);
@@ -326,7 +334,7 @@ function App() {
   }, [devices, activeDevice]);
   useEffect(() => {
     if (
-      !connected ||
+      desktopMode || !connected ||
       busy ||
       runBusy ||
       sidePanel ||
@@ -377,7 +385,7 @@ function App() {
     [notify],
   );
   useEffect(() => {
-    if (connected && url && !sidePanel && !launchRun) loadViews(url, devices);
+    if (!desktopMode && connected && url && !sidePanel && !launchRun) loadViews(url, devices);
   }, [connected, url, devices, loadViews]);
   useEffect(() => {
     if (extensionMode && !sidePanel && !launchUrl)
@@ -515,7 +523,7 @@ function App() {
   };
   const startAudit = async () => {
     if (runBusy || flow.running || flow.recording) return;
-    if (auditMode !== "flow" && !/^https?:\/\//.test(url)) {
+    if (auditMode !== "flow" && !/^https?:\/\//.test(url) && !(desktopMode && url === "atlas://example/index.html")) {
       notify("Open a website in Chrome, then click the extension to audit it.");
       return;
     }
@@ -528,7 +536,7 @@ function App() {
       return;
     }
     setModal(null);
-    if (auditMode === "flow" && extensionMode) {
+    if (auditMode === "flow" && (extensionMode || desktopMode)) {
       await flow.perform("/flows/run", "POST", {
         devices: auditDevices, profile,
       });
@@ -551,7 +559,7 @@ function App() {
       });
       setRun(result);
       if (sidePanel) save("atlas-sidebar-run", result.id);
-      if (sidePanel || (profile.ai && profile.liveCodexOutput)) {
+      if (desktopMode || sidePanel || (profile.ai && profile.liveCodexOutput)) {
         setPage("workspace");
         setTab("findings");
       }
@@ -736,7 +744,7 @@ function App() {
         throw Error("Choose a valid Viewport Atlas profiles JSON file.");
       setProfiles((ps) => [
         ...ps,
-        ...list.map((p) => ({ ...PROFILES[0], ...p, id: crypto.randomUUID() })),
+        ...list.map((p) => ({ ...PROFILES[0], ...(desktopMode ? { devices: devices.map(d => d.id) } : {}), ...p, id: crypto.randomUUID() })),
       ]);
       notify(`${list.length} profile${list.length > 1 ? "s" : ""} imported.`);
     } catch (e) {
@@ -748,6 +756,7 @@ function App() {
       ...PROFILES[0],
       id: crypto.randomUUID(),
       name: "Untitled profile",
+      ...(desktopMode ? { devices: devices.map(d => d.id) } : {}),
     });
     setModal("profile");
   };
@@ -859,7 +868,7 @@ function App() {
         <div className="companion-card">
           <div className="companion-heading">
             <span className={`status-dot ${status ? "online" : ""}`} />
-            <strong>Local companion</strong>
+            <strong>{desktopMode ? "Desktop runtime" : "Local companion"}</strong>
             <span className="local-tag">LOCAL</span>
           </div>
           <p>
@@ -868,7 +877,7 @@ function App() {
               : "Waiting for connection."}
           </p>
           <button onClick={() => selectPage("settings")}>
-            {status ? "Manage connection" : "Connect companion"}
+            {desktopMode ? "Runtime settings" : status ? "Manage connection" : "Connect companion"}
             <ArrowUpRight size={13} />
           </button>
         </div>
@@ -908,7 +917,7 @@ function App() {
       <div className="header-right">
         <span className="header-local">
           <span className={`status-dot ${status ? "online" : ""}`} />
-          {status ? "Companion connected" : "Companion offline"}
+          {desktopMode ? status ? "Desktop ready" : "Checking runtime…" : status ? "Companion connected" : "Companion offline"}
         </span>
         <span className="header-divider" />
         <button
@@ -1032,7 +1041,7 @@ function App() {
         </IconButton>}
       </div>
       <div className="audit-panel-body">
-        {extensionMode && <>
+        {(extensionMode || desktopMode) && <>
           <div className="audit-mode" role="group" aria-label="Audit scope">
             <button aria-pressed={auditMode === "page"} disabled={flow.running || flow.recording} onClick={() => setAuditMode("page")}>This page</button>
             <button aria-pressed={auditMode === "flow"} disabled={runBusy} onClick={() => setAuditMode("flow")}>User flow</button>
@@ -1231,12 +1240,12 @@ function App() {
       <div className="audit-panel-footer">
         <div className="scope-note">
           <Info size={13} />
-          <span>{auditMode === "flow" && extensionMode ? "Selected screens only. No site-wide crawling." : "Just this page. No site-wide crawling."}</span>
+          <span>{auditMode === "flow" && (extensionMode || desktopMode) ? "Selected screens only. No site-wide crawling." : "Just this page. No site-wide crawling."}</span>
         </div>
         <button
           className="primary-button run-audit"
           disabled={runBusy || busy || !status || !selectedCount || flow.running || flow.recording || flow.pending ||
-            (auditMode === "flow" && extensionMode ? !flow.plan?.steps.some((step) => step.type === "checkpoint" && step.audit) : sidePanel && !/^https?:\/\//.test(url))}
+            (auditMode === "flow" && (extensionMode || desktopMode) ? !flow.plan?.steps.some((step) => step.type === "checkpoint" && step.audit) : sidePanel && !/^https?:\/\//.test(url))}
           onClick={startAudit}
         >
           {runBusy || flow.running ? (
@@ -1244,7 +1253,7 @@ function App() {
           ) : (
             <ScanLine size={17} />
           )}
-          <span>{flow.recording ? "Stop recording to run" : flow.running ? "Flow audit in progress…" : runBusy ? "Audit in progress…" : auditMode === "flow" && extensionMode ? "Run flow audit" : "Run audit"}</span>
+          <span>{flow.recording ? "Stop recording to run" : flow.running ? "Flow audit in progress…" : runBusy ? "Audit in progress…" : auditMode === "flow" && (extensionMode || desktopMode) ? "Run flow audit" : "Run audit"}</span>
           {!runBusy && !flow.running && !sidePanel && <span className="button-shortcut">↵</span>}
         </button>
         {flow.running && <>
@@ -1284,6 +1293,7 @@ function App() {
             <button
               className={tab === "views" ? "active" : ""}
               onClick={() => {
+                if (desktopMode) { onReturnToBrowser?.(); return; }
                 setTab("views");
                 if (launchRun && !runBusy) loadViews(url, devices);
               }}
@@ -1332,7 +1342,7 @@ function App() {
         </div>
         <div className="workspace-body">
           <div className="workspace-main">
-            {tab === "views" ? (
+            {tab === "views" && !desktopMode ? (
               <>
                 <div className="address-toolbar">
                   <div className="address-nav">
@@ -1794,7 +1804,7 @@ function App() {
             className="primary-button"
             onClick={() => {
               setRightPanel(true);
-              setTab("views");
+              setTab(desktopMode ? "findings" : "views");
             }}
           >
             <SlidersHorizontal size={16} />
@@ -1823,7 +1833,7 @@ function App() {
           className="primary-button"
           onClick={() => {
             setPage("workspace");
-            setTab("views");
+            setTab(desktopMode ? "findings" : "views");
           }}
         >
           <Plus size={16} />
@@ -2021,14 +2031,17 @@ function App() {
         </div>
       </div>
       <div className="settings-layout">
+        {desktopMode && <DeviceSettings key={JSON.stringify(devices)} devices={devices} sets={deviceSets} onSets={setDeviceSets} onDevices={next => {
+          setDevices(next);
+          updateProfile({ devices: next.map(d => d.id) });
+        }} />}
         <section className="content-panel settings-section">
           <h2>
             <Unplug size={19} />
-            Local companion
+            {desktopMode ? "Desktop runtime" : "Local companion"}
           </h2>
           <p>
-            The companion renders pages in Chromium, runs checks, and saves your
-            evidence on this computer.
+            {desktopMode ? "The app runs Chromium, checks, and local reports directly. Browsing and audits work without the extension or companion server." : "The companion renders pages in Chromium, runs checks, and saves your evidence on this computer."}
           </p>
           <div className="connection-check">
             <span className={`status-dot ${status ? "online" : ""}`} />
@@ -2095,8 +2108,7 @@ function App() {
             </button>
           </div>
           <p className="field-description">
-            Native folder picker on macOS. Other platforms accept an absolute
-            folder path.
+            {desktopMode ? "Choose a local destination with the native folder picker." : "Native folder picker on macOS. Other platforms accept an absolute folder path."}
           </p>
         </section>
         <section className="content-panel settings-section">
@@ -2584,7 +2596,7 @@ function App() {
                             are masked. Page evidence is treated as untrusted
                             content.
                           </p>
-                          {auditMode === "flow" && extensionMode && <p>Evidence is collected and analyzed separately for every selected screen in this recorded flow. Ordinary field entries used during replay may appear in screenshots. Apply masks before running.</p>}
+                          {auditMode === "flow" && (extensionMode || desktopMode) && <p>Evidence is collected and analyzed separately for every selected screen in this recorded flow. Ordinary field entries used during replay may appear in screenshots. Apply masks before running.</p>}
                           {profile.includePageCode && (
                             <p>Page code is included: rendered HTML, readable CSS, and script URLs. Form values, masked regions, inline scripts, and event handlers are omitted. This is a limited frontend snapshot, not your original component or server source. Code snapshots are saved in the audit folder.</p>
                           )}
@@ -3048,6 +3060,10 @@ function App() {
                   {(ev.crop || ev.screenshot) && (
                     <a
                       href={assetUrl(ev.annotation || ev.screenshot)}
+                      onClick={desktopMode ? event => {
+                        event.preventDefault();
+                        if (run) void api(`/runs/${run.id}/evidence`, "POST", { path: ev.annotation || ev.screenshot }).catch(error => notify(error.message));
+                      } : undefined}
                       target="_blank"
                       rel="noreferrer"
                     >

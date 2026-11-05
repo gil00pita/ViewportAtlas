@@ -1,8 +1,9 @@
-import { api, assetUrl, downloadBlob, extensionMode } from "./api";
+import { api, assetUrl, downloadBlob, extensionMode, desktopMode } from "./api";
 
 export type PdfLayout = "original" | "a4";
 
 export async function exportPdfReport(runId: string, preview: boolean, layout: PdfLayout = "original") {
+  if (desktopMode) return window.atlasDesktop.pdf(runId, layout, preview);
   // Reserve the preview during the click, before asynchronous PDF generation.
   const tab = preview ? window.open("about:blank", "_blank") : null;
   if (preview && !tab) {

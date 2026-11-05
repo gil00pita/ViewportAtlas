@@ -92,7 +92,7 @@ export type Run = {
 };
 export type FlowStep = {
   id: string;
-  type: "click" | "input" | "scroll" | "navigate" | "checkpoint" | "blocked";
+  type: "click" | "input" | "control" | "scroll" | "navigate" | "key" | "hover" | "drag" | "double-click" | "checkpoint" | "blocked";
   label: string;
   url: string;
   audit?: boolean;
