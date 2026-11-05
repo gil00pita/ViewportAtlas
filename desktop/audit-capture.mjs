@@ -1,5 +1,5 @@
 import { privateElements } from "../companion/privacy-page.mjs";
-import { pageCommand } from "./cdp.mjs";
+import { pageCommand, captureScreenshot } from "./cdp.mjs";
 import axe from "axe-core";
 import { DEFAULT_MASKS } from "../companion/capture.mjs";
 import { MAX_HEIGHT } from "../companion/capture-settings.mjs";
@@ -103,7 +103,7 @@ export async function captureAuditDevice(workspace, device, profile, signal) {
     })()`);
     if (metrics.width !== device.width || metrics.height !== device.height || metrics.density !== 2) throw new Error("Browser dimensions do not match the requested evidence.");
     const height = profile.fullPage ? Math.min(Math.max(metrics.documentHeight, device.height), MAX_HEIGHT) : device.height;
-    const shot = await pageCommand(entry, "Page.captureScreenshot", {
+    const shot = await captureScreenshot(entry, {
       format: "png", captureBeyondViewport: profile.fullPage,
       clip: { x: profile.fullPage ? 0 : metrics.x, y: profile.fullPage ? 0 : metrics.y, width: device.width, height, scale: 1 },
     }, { signal, timeout: 20000 });
