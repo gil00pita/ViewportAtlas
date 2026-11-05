@@ -7,9 +7,11 @@ export async function captureScreenshot(entry, params, options) {
   if (!params.captureBeyondViewport) {
     // Prime the native surface while Electron holds its capture visibility lease.
     // This image is discarded; DevTools retains the emulated 2× evidence pixels.
-    await pageOperation(() => entry.view.webContents.capturePage({ x: 0, y: 0, width: 1, height: 1 }, { stayHidden: true }), options);
+    try { await pageOperation(() => entry.view.webContents.capturePage({ x: 0, y: 0, width: 1, height: 1 }, { stayHidden: false }), options); }
+    catch(error){throw new Error(`The browser could not prepare the capture surface: ${error.message}`,{cause:error});}
   }
-  return pageCommand(entry, 'Page.captureScreenshot', params, options);
+  try { return await pageCommand(entry, 'Page.captureScreenshot', params, options); }
+  catch(error){throw new Error(`The browser could not return the screenshot: ${error.message}`,{cause:error});}
 }
 
 function pageOperation(dispatch, { signal, timeout = 15000 } = {}) {
