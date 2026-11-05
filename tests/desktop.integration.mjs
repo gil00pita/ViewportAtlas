@@ -311,6 +311,22 @@ test("controlled checkboxes, select changes, nested scrolling, navigation and hi
   await window.evaluate(url => window.atlasDesktop.navigate(url), url);
 });
 
+test('mirrored links acknowledge committed navigation after the old context disappears',async()=>{
+  await window.evaluate(url=>window.atlasDesktop.navigate(url),url);
+  await electron.evaluate(({webContents},id)=>{
+    const api=webContents.fromId(id).debugger,send=api.sendCommand;
+    globalThis.__atlasNavigationDelay={api,send};
+    api.sendCommand=function(method,params){
+      if(method==='Runtime.evaluate'&&params.expression?.includes('"type":"match"')&&params.expression.includes('"id":"next-page"'))params={...params,expression:params.expression.replace('await new Promise(resolve => setTimeout(resolve, 0));','await new Promise(resolve => setTimeout(resolve, 200));')};
+      return send.call(this,method,params);
+    };
+  },views[1]);
+  try{
+    await click(views[0],'#next-page');
+    await until(async()=>({paths:await Promise.all(views.map(id=>inspect(id,'location.pathname'))),state:await window.evaluate(()=>window.atlasDesktop.state())}),actual=>actual.paths.every(path=>path==='/next')&&!actual.state.paused&&actual.state.pending===0,'Committed link navigation did not converge');
+  }finally{await electron.evaluate(()=>{const {api,send}=globalThis.__atlasNavigationDelay;api.sendCommand=send;delete globalThis.__atlasNavigationDelay;});}
+});
+
 test("desktop records and replays a multi-page journey through the shared action engine", async () => {
   await window.evaluate(url => window.atlasDesktop.navigate(url), url);
   await window.evaluate(() => window.atlasDesktop.review("/flows/record", "POST", { masks: "" }));

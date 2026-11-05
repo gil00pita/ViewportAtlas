@@ -237,8 +237,7 @@ export class BrowserWorkspace {
     await this.run(entry, `globalThis.__atlasSync.applying = false; globalThis.__atlasSync.masks = ${JSON.stringify(this.masks)}; globalThis.__atlasSync.testOrigin = ${JSON.stringify(this.testOrigin || "")}`);
   }
 
-  async waitNavigation(entry, url, trigger) {
-    const revision = entry.navigationRevision;
+  async waitNavigation(entry, url, trigger, revision = entry.navigationRevision) {
     await trigger();
     const deadline = Date.now() + 10000;
     while (entry.navigationRevision === revision || entry.view.webContents.getURL() !== url || !entry.context || entry.view.webContents.isLoadingMainFrame()) {
@@ -375,7 +374,9 @@ export class BrowserWorkspace {
 
   async evaluate(entry, action) {
     if (!entry.context) throw new Error("The page is not ready for interaction.");
-    const response = await pageCommand(entry, "Runtime.evaluate", {
+    const revision = entry.navigationRevision;
+    let response;
+    try { response = await pageCommand(entry, "Runtime.evaluate", {
       contextId: entry.context,
       expression: `(async () => {
         const state = globalThis.__atlasSync;
@@ -384,7 +385,14 @@ export class BrowserWorkspace {
         finally { await new Promise(resolve => setTimeout(resolve, 0)); if (state) state.applying = false; }
       })()`,
       awaitPromise: true, returnByValue: true,
-    });
+    }); } catch (error) {
+      const navigated = entry.navigationRevision !== revision;
+      const lostContext = /context.*destroyed|Cannot find context|Inspected target navigated or closed/i.test(error.message);
+      if (action.type !== 'match' || !action.descriptor?.href || !navigated || !lostContext) throw error;
+      // A committed link may destroy the old world's acknowledgement. Never click twice.
+      await this.waitNavigation(entry, reviewUrl(action.descriptor.href), () => {}, revision);
+      return { ok: true };
+    }
     if (response.exceptionDetails) throw new Error("Page evaluation failed.");
     return response.result.value;
   }
