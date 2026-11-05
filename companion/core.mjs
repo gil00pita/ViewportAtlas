@@ -55,6 +55,12 @@ export function safePath(root, file) {
     throw new Error("Path is outside the output folder.");
   return path;
 }
+export function exportFileName(name) {
+  if (typeof name !== "string" || name.length > 200) throw new Error("Choose an export file name up to 200 characters.");
+  const result = name.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").replace(/[. ]+$/, "");
+  if (!result) throw new Error("Choose a file name for this export.");
+  return result;
+}
 export function stableId(...parts) {
   return createHash("sha256")
     .update(parts.join("|"))

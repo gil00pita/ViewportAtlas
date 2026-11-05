@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "./api";
+import { api, desktopMode } from "./api";
 import type { FlowState } from "./types";
 
 export function useFlowPlanner(enabled: boolean, notify: (message: string) => void) {
@@ -32,6 +32,7 @@ export function useFlowPlanner(enabled: boolean, notify: (message: string) => vo
     try {
       await api(path, method, body);
       await refresh();
+      if (desktopMode && ["/flows/record", "/flows/resume"].includes(path)) window.dispatchEvent(new Event("atlas-show-browser"));
     } catch (error) { notify((error as Error).message); }
     finally { pendingRef.current = false; setPending(false); }
   }, [notify, refresh]);

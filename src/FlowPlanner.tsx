@@ -3,6 +3,7 @@ import { Circle, Square, Plus, Trash2, Route, FileText, Loader2, AlertTriangle }
 import type { Run } from "./types";
 import type { useFlowPlanner } from "./use-flow-planner";
 import "./flow-planner.css";
+import { desktopMode } from "./api";
 
 export function FlowPlanner({ flow, masks, disabled, onOpenRun }: {
   flow: ReturnType<typeof useFlowPlanner>;
@@ -24,7 +25,7 @@ export function FlowPlanner({ flow, masks, disabled, onOpenRun }: {
       <div><h3>Plan the journey. Audit it later.</h3><p>Walk through your website and save the screens that matter. Replay checks them across your selected devices.</p></div>
     </div>
     {recording ? <>
-      <p className="flow-recording" role="status"><Circle size={10} fill="currentColor" />Recording your website tab</p>
+      <p className="flow-recording" role="status"><Circle size={10} fill="currentColor" />{desktopMode ? "Recording your live workspace" : "Recording your website tab"}</p>
       <div className="flow-actions">
         <button className="button" disabled={locked} onClick={() => perform("/flows/checkpoint")}><Plus size={15} />Save screen</button>
         <button className="button" disabled={locked} onClick={() => perform("/flows/stop")}><Square size={13} />Stop recording</button>
@@ -33,7 +34,7 @@ export function FlowPlanner({ flow, masks, disabled, onOpenRun }: {
       {plan?.interruption && <>
         <p className="flow-error" role="status"><AlertTriangle size={15} />{plan.error}</p>
         <button className="button flow-record-button" disabled={locked} onClick={() => perform("/flows/resume", "POST", { masks })}><Circle size={14} />Resume recording</button>
-        <p className="flow-privacy">Continue in the original website tab, or reopen it if it closed. Review any missed actions, then remove the recording-gap step before running the audit.</p>
+        <p className="flow-privacy">{desktopMode ? "Continue in the live workspace, or reopen the website if it closed." : "Continue in the original website tab, or reopen it if it closed."} Review any missed actions, then remove the recording-gap step before running the audit.</p>
       </>}
       <button className="button flow-record-button" disabled={locked} onClick={() => perform("/flows/record", "POST", { masks, autoScreens })}><Circle size={14} />Record a new flow</button>
       <label className="flow-option"><input type="checkbox" checked={autoScreens} disabled={locked} onChange={(event) => setAutoScreens(event.target.checked)} />Save screens automatically after interactions</label>
@@ -61,7 +62,7 @@ export function FlowPlanner({ flow, masks, disabled, onOpenRun }: {
             <input aria-label={`Screen name ${index + 1}`} defaultValue={step.label} disabled={locked || recording} onBlur={(event) => {
               if (event.target.value !== step.label) void perform("/flows/plan", "PATCH", { stepId: step.id, label: event.target.value });
             }} />
-          </label> : <span className="flow-step-label"><strong>{step.type === "blocked" ? "Review required" : step.type === "input" ? "Edit field" : step.type === "click" ? "Click" : step.type === "navigate" ? "Navigate" : "Scroll"}</strong>{step.label}</span>}
+          </label> : <span className="flow-step-label"><strong>{{ blocked: "Review required", input: "Edit field", control: "Change widget", click: "Click", navigate: "Navigate", scroll: "Scroll", key: "Keyboard", hover: "Hover", drag: "Drag/drop", "double-click": "Double-click" }[step.type]}</strong>{step.label}</span>}
           <button className="icon-button" title="Remove step" aria-label={`Remove step ${index + 1}`} disabled={locked || recording} onClick={() => perform("/flows/plan", "PATCH", { removeStep: step.id })}><Trash2 size={12} /></button>
         </li>)}
       </ol>

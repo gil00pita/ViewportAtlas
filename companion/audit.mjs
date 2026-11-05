@@ -167,7 +167,7 @@ async function saveRunFiles(root, run, { pdf = true } = {}) {
 export async function performAudit(
   run,
   root,
-  { signal, snapshots, previous, onProgress = () => {} } = {},
+  { signal, snapshots, captureDevice, previous, onProgress = () => {} } = {},
 ) {
   const progress = async (message) => {
     run.progress = message;
@@ -190,7 +190,12 @@ export async function performAudit(
         let page;
         let axeResult;
         let bounds = {};
-        if (snapshots) {
+        if (captureDevice) {
+          const result = await captureDevice(device, run.profile, signal);
+          capture = result.capture;
+          axeResult = result.axe;
+          bounds = result.bounds || {};
+        } else if (snapshots) {
           const s = snapshots.find((s) => s.deviceId === device.id);
           if (!s)
             throw new Error(

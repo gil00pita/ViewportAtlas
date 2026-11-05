@@ -16,11 +16,13 @@ declare global {
   }
 }
 export const extensionMode = Boolean(window.chrome?.runtime?.id);
+export const desktopMode = Boolean(window.atlasDesktop);
 export async function api<T = unknown>(
   path: string,
   method = "GET",
   body?: unknown,
 ): Promise<T> {
+  if (desktopMode) return window.atlasDesktop.review<T>(path, method, body);
   if (extensionMode) {
     const result = await window.chrome!.runtime!.sendMessage({
       type: "api",
@@ -45,11 +47,16 @@ export async function health() {
   return api<Health>("/health");
 }
 export function assetUrl(path: string) {
+  if (desktopMode && path.startsWith("/evidence/")) return `atlas://evidence/${path.slice("/evidence/".length)}`;
   return extensionMode && path.startsWith("/")
     ? `http://127.0.0.1:4318${path}`
     : path;
 }
 export function downloadBlob(name: string, blob: Blob) {
+  if (desktopMode) {
+    void blob.text().then(data => window.atlasDesktop.save(name, data)).catch(error => window.dispatchEvent(new CustomEvent("atlas-storage-error", { detail: String(error) })));
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

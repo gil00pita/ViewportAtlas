@@ -1,11 +1,11 @@
 :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #143a35; background: #f4f7f6; font-synthesis: none; }
 * { box-sizing: border-box; }
 body { margin: 0; }
-button, input { font: inherit; }
-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; border: 1px solid #c8d6d1; border-radius: 8px; background: #fff; color: #244c45; padding: 8px 12px; cursor: pointer; font-size: 13px; font-weight: 550; }
-button:hover { background: #edf5f2; }
-button:disabled { opacity: .55; cursor: default; }
-button:focus-visible, input:focus-visible { outline: 2px solid #008678; outline-offset: 3px; }
+.desktop-app button, .desktop-app input { font: inherit; }
+.desktop-app button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; border: 1px solid #c8d6d1; border-radius: 8px; background: #fff; color: #244c45; padding: 8px 12px; cursor: pointer; font-size: 13px; font-weight: 550; }
+.desktop-app button:hover { background: #edf5f2; }
+.desktop-app button:disabled { opacity: .55; cursor: default; }
+.desktop-app button:focus-visible, .desktop-app input:focus-visible { outline: 2px solid #008678; outline-offset: 3px; }
 ::selection { background: #b0eee0; color: #143a35; }
 .desktop-app { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .desktop-header { display: flex; align-items: center; gap: 20px; padding: 16px 32px; background: #102e2a; color: #fff; }
@@ -16,7 +16,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #008678; outline-
 .desktop-header .desktop-capture:hover { background: #2cdbca; }
 .desktop-main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 28px 32px 24px; }
 .desktop-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-h1 { font-size: 25px; line-height: 1.3; letter-spacing: -.025em; margin: 0 0 6px; font-weight: 650; }
+.desktop-app h1 { font-size: 25px; line-height: 1.3; letter-spacing: -.025em; margin: 0 0 6px; font-weight: 650; }
 .desktop-heading p { margin: 0; font-size: 14px; line-height: 1.5; color: #526e67; }
 .desktop-address { display: flex; gap: 12px; align-items: center; padding: 6px 8px 6px 16px; border: 1px solid #c8d6d1; border-radius: 10px; background: #fff; }
 .desktop-address input { flex: 1; min-width: 0; border: none; background: transparent; color: #143a35; padding: 10px 2px; font-size: 14px; }
@@ -40,3 +40,43 @@ h1 { font-size: 25px; line-height: 1.3; letter-spacing: -.025em; margin: 0 0 6px
 .desktop-session { margin-left: auto; }
 .desktop-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 @media (max-width: 1150px) { .desktop-tools-help, .desktop-session { display: none; } .desktop-sync { margin-right: auto; } .desktop-device-heading { flex-direction: column; gap: 4px; } }
+
+.desktop-review { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.desktop-review-bar { display: flex; align-items: center; gap: 16px; padding: 8px 24px; background: #102e2a; color: #fff; font-size: 12px; min-height: 52px; }
+.desktop-review-bar button { background: #fff; color: #143a35; border: 1px solid #c8d6d1; border-radius: 8px; padding: 8px 12px; }
+.desktop-review-bar span { overflow-wrap: anywhere; }
+.desktop-review .app { flex: 1; min-height: 0; height: calc(100vh - 52px); overflow: hidden; }
+.desktop-review .page-content { overflow-y: auto; }
+.desktop-review .sidebar { top: 52px; }
+.desktop-review .app-content { height: calc(100vh - 52px); }
+.desktop-device-settings form { display: grid; gap: 16px; }
+.desktop-device-fields { display: grid; grid-template-columns: minmax(100px, 1fr) 90px 90px auto; align-items: end; gap: 12px; }
+.desktop-device-fields label, .desktop-save-set label { display: grid; gap: 8px; font-size: 12px; }
+.desktop-device-fields input, .desktop-save-set input { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); color: var(--ink); }
+.desktop-device-fields input[type="number"] { font-variant-numeric: tabular-nums; }
+.desktop-save-set { margin-top: 24px; }
+.desktop-save-set > div, .desktop-set-row { display: flex; align-items: center; gap: 12px; }
+.desktop-set-row { padding-top: 16px; }
+.desktop-set-row span { flex: 1; overflow-wrap: anywhere; }
+@media (max-width: 1100px) { .desktop-device-fields { grid-template-columns: minmax(100px, 1fr) 70px 70px; } .desktop-device-fields button { grid-column: 1 / -1; justify-self: start; } }
+.desktop-flow-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 12px; font-size: 12px; }
+.desktop-flow-tools label { display: flex; align-items: center; gap: 8px; }
+.desktop-app select, .desktop-management input { padding: 8px; border: 1px solid #c8d6d1; border-radius: 8px; background: #fff; color: #143a35; font: inherit; }
+.desktop-management { padding: 24px 32px; overflow: auto; color: var(--ink); background: var(--white); }
+.desktop-management :is(input, select, button) { color: var(--ink); background: var(--surface-input, var(--white)); border-color: var(--line); }
+.desktop-management button:hover { background: var(--accent-soft, #edf5f2); }
+.desktop-management select:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+.desktop-management h2 { margin-top: 0; }
+.desktop-management p { max-width: 75ch; font-size: 13px; line-height: 1.6; }
+.desktop-management form, .desktop-management-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; margin-top: 20px; }
+.desktop-management label { display: grid; gap: 8px; font-size: 13px; }
+.desktop-management .desktop-check { display: flex; align-items: center; gap: 8px; padding-block: 10px; }
+.desktop-management input[type="checkbox"] { accent-color: #008678; }
+.desktop-header { flex-wrap: wrap; gap: 12px; }
+.desktop-test-mode { color: #ffd0c3; font-size: 12px; }
+.desktop-management h2:not(:first-child) { margin-top: 32px; }
+.desktop-app .desktop-exclude { min-height: 26px; padding: 4px 6px; font-size: 11px; }
+.desktop-management { flex: 1; min-height: 0; }
+.desktop-tools-help { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.desktop-device-heading h2 { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.desktop-flow-tools > span { max-width: 100%; overflow-wrap: anywhere; line-height: 1.5; }

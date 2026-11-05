@@ -1,5 +1,79 @@
 # Validation
 
+## Full Mac desktop verification — 5 November 2026
+
+The Mac session was unlocked and the complete Electron suite passed against source, the freshly packaged application, and the application copied from its DMG. This supersedes the locked-session limitation in the 4 November record below.
+
+| Check | Result |
+| --- | --- |
+| Core suite (`npm test`) | 68 passed |
+| Full source Electron suite | 23 passed; `.context/desktop-full-source.log` |
+| Full packaged macOS arm64 suite | 23 passed; `.context/desktop-full-packaged.log` |
+| Full DMG-installed macOS arm64 suite | 23 passed with system-only PATH; `.context/desktop-full-installed.log` |
+| Desktop build and fresh unsigned app/ZIP/DMG | Passed |
+
+The unlocked run found three issues in the existing recorder and browser delivery handlers. A click on a field already focused in the DOM did not identify the new interaction source; direct field/widget clicks now emit focus intent, with a dedicated recorder regression. Caret-only selection events cleared the safe retry action after a match failure; only substantive edits, control changes, or navigation now invalidate it. A follower navigation could commit after its mirrored click returned and be mistaken for a new source; its delivery origin now follows navigation from start through commit or failure. The original failing source-switch, counterpart-recovery, and multi-page recording paths all pass without retries.
+
+The complete suites exercise native text/selection/deletion and source switching, controlled widgets, nested scrolling, navigation/history, recorded journey replay, committed IME text, responsive menus, open shadows, plain contenteditable, Escape, hover and DOM drops. They also cover masks and real PNG/PDF evidence, audits/finding edits/history, device sets, one-time managed downloads, isolated popups, project data transfer, authentication persistence, temporary sessions and crash/cancellation recovery. The installed app is copied to a temporary path containing spaces and Unicode after mounting the real DMG, then runs after the disk is detached.
+
+This is local macOS Apple silicon verification. Physical IME/native picker and broader shortcut testing, representative external SSO, Intel Mac/Windows, display scaling, clean machines, signing/notarization and real signed updates remain release gates. No paid AI call, Miro write, signing operation or release publication was performed. Earlier extension and interface-review evidence retains its stated scope.
+
+The pre-commit React Doctor scan included newly staged files (38 files versus the earlier narrower scan). It reports ten warnings: four sequential-operation warnings, four array-lookup warnings, and two prop-initialized form-state warnings; aggregate score 51/100. The form state intentionally starts from the current device/project selection, replay preserves action order, and validation/storage work remains sequential or bounded. These warnings were reviewed without suppressions; the project does not have a clean static-analysis result.
+
+## Expanded desktop migration — 4 November 2026
+
+This record describes the 4 November implementation pass. The full Mac verification above supersedes its locked-session limitation; historical counts below retain their original scope. The expanded synchronization, flows, audit/data and distribution implementation is in place, but full release acceptance has not passed.
+
+| Check | Latest result |
+| --- | --- |
+| `npm test` | 67 passed, including a trusted DOM-drop recorder regression |
+| Web/extension production build and desktop build | Passed |
+| Complete extension integration suite | 5 passed on final run; `.context/extension-final.log` |
+| Dependency audit / `npm ls` | 0 known vulnerabilities / dependency tree passed |
+| Focused source Electron suite | 8 passed; `.context/source-final.log`, including capture/privacy checks |
+| Active privacy-mask guard | 1 additional source check passed; `.context/invalid-live-mask.log` |
+| Dedicated native capture/privacy run | 2 passed separately; also included in the combined 8-test run |
+| Unsigned macOS arm64 `.app`, ZIP and DMG | Built successfully; `.context/make-desktop.log` |
+| Latest packaged macOS arm64 focused suite | 9 passed; `.context/packaged-final.log` |
+| Latest DMG-installed macOS arm64 focused suite | 9 passed with system-only PATH; `.context/installed-final.log` |
+| Final complete native focus/input suite | Blocked by locked macOS graphical session (`isFocused` false); no all-native-tests-passed claim |
+| Final interface review | Regular/minimum-size and dark-mode captures inspected; project controls use existing theme tokens |
+
+The six focused source checks exercise real native CSS dimensions and isolation, invalid-mask failure/cancellation, optional AI/page-code evidence through a labeled local CLI fixture, managed isolated popups and a one-time website download, replay cancellation with retained screen evidence, and project session isolation/clear-sign-ins/temporary restart. The project test also exercises import previews, export/reference behavior, and recovery after interrupted work. Separate data-transfer tests cover validation and before-import backups. These checks do not require physical keyboard focus and passed in the current session.
+
+A focused packaged reproducer isolated macOS screenshot stalls when native views were hidden. During capture the app now keeps those views painting outside the window's clipped content area, then restores their bounds and visibility. The capture regression checks that native surfaces do not cover review controls, verifies actual masked 2× pixels, and reads a real PDF. Browser commands have timeouts; shutdown waits for exports and pending settings. Startup no longer accepts a new navigation while the initial page is opening. Structured rich-text edits pause instead of flattening formatted content.
+
+An earlier extension integration run passed four of five checks; the flow check timed out during capture while other browser jobs were active (`.context/extension-contended.log`). Its isolated rerun passed, then the complete five-test suite passed with other browser jobs idle (`.context/extension-final.log`). No extension retry was added. The changed-code React Doctor scan reports no introduced issues; its aggregate score remains low and the full scan retains architectural/heuristic warnings, so this is not a whole-project static-analysis pass.
+
+Two additional native checks verify masked 2× PNGs and real PDF output, plus private open-shadow and opaque/embedded-region masking. Earlier focused native input checks exercised the expanded interaction engine; the final complete input suite is not a passing result because the Mac remains locked. In particular, real IME composition/native picker behavior and operating-system shortcuts still require manual verification. Source implementation includes widgets, committed Unicode, scrolling/history, open shadows/plain contenteditable, hover/DOM drag, counterpart mappings/menu preparation, safe retry/exclusion, test-origin control, and recording/replay; implementation must not be read as universal compatibility evidence.
+
+Final screenshots are `.context/desktop-projects-current.png`, `.context/desktop-projects-minimum.png`, `.context/desktop-projects-minimum-lower.png`, `.context/desktop-projects-dark.png`, `.context/desktop-projects-minimum-dark.png`, `.context/desktop-review-minimum-dark-current.png`, and `.context/desktop-flow-current.png`. The extension/workspace visual system, supplied mark, light/dark semantic tokens, compact type, 8px controls and 12px panels were preserved; `DESIGN.md` was not rewritten. The desktop shell's existing literal palette remains a pre-existing tokenization difference, not a newly adopted design rule. The shared stylesheet declares Manrope while `DESIGN.md` describes system sans; the desktop stylesheet uses system sans. This pre-existing documentation/type difference was recorded without rewriting the incumbent design system.
+
+Project exports contain settings, flows, ordinary recorded entries and references to report folders; cookies/browser credentials are excluded. Keep the referenced folders available. Temporary browser partitions clear on exit while saved project metadata/reports remain. No automatic transfer of Chrome storage or credentials was performed.
+
+The installed check mounts the real DMG, copies its app into a temporary path containing spaces and Unicode, detaches the disk, and runs the focused suite with system-only PATH. A cancellation test initially attempted navigation before the workspace's cleanup guard released; it now waits for the same idle state that enables the UI, and the installed suite passes. No runtime retry was added. This remains a developer-machine installation test.
+
+Signed release CI and update adapters target [gil00pita/ViewportAtlas Releases](https://github.com/gil00pita/ViewportAtlas/releases). Development/unsigned updates are disabled. No signing secrets are configured; no release was published. Windows/Intel execution, clean-machine installation/uninstallation, installer signing/notarization, minimum OS/display-scale checks, and real signed upgrade behavior remain unverified. Local installed-artifact testing does not replace clean-machine tests. Representative SSO, live desktop Codex analysis, and Miro writes remain external/manual gates. See [desktop compatibility and status](DESKTOP-MIGRATION.md) and [release/signing instructions](DESKTOP-RELEASE.md).
+
+## Desktop review foundation — 4 November 2026
+
+Validated locally on macOS Apple silicon. This extends the desktop preview with current-page audits and shared review controls; it does not complete the desktop migration.
+
+| Check | Result |
+| --- | --- |
+| `npm test` | 61 passed |
+| Source Electron integration suite | 13 passed |
+| Freshly packaged macOS arm64 application integration suite | 13 passed against the built `.app` |
+| Web/extension and desktop builds | Passed |
+| React Doctor scan of changed React code | No issues reported in changed-code scan |
+| Interface review | Ship; no material introduced visual findings |
+
+Real Electron checks exercise the shared review UI with native browser views hidden, genuine full-page 2× PNGs, custom masking below the viewport and restoration, real axe-core findings and metadata checks, report history, finding edits, native A4 PDF export, and evidence opening with path rejection. Invalid masks fail without producing unmasked screenshots; cancellation retains the run. Profile creation uses the current desktop device IDs. Returning with an unchanged device configuration preserves the live page and unsaved state; a changed configuration recreates the views and reopens the page, retaining cookies but discarding unsaved state. Device editing and saved sets configure real native viewport dimensions, and preferences, finding edits, history, and authentication cookies survive restart. Storage tests also verify atomic preference persistence, input validation, and interrupted-audit recovery with retained evidence.
+
+Review screenshots are `.context/desktop-review.png`, `.context/desktop-findings.png`, `.context/desktop-settings.png`, and `.context/desktop-settings-narrow-dark.png`. The review preserved the existing visual system; no design tokens or design-system files changed. The quick current-viewport capture remains explicitly unaudited and is registered in desktop history.
+
+Codex, optional page-code evidence, and Miro reuse shared integration paths, but this desktop validation made no live AI requests or Miro writes. It did not verify Windows/Intel execution, clean-machine installation, signing/notarization, installers, updates, or representative external SSO. Full synchronization, desktop flows, per-project/temporary/clear-login sessions, and full legacy-data migration remain open. Earlier validation records below retain their original scope and counts.
+
 ## Desktop preview — 3 November 2026
 
 Validated on macOS 27.2 Apple silicon, Node.js 26.3.1, and Electron 45.2.1. The first desktop migration slice is an unsigned developer preview; the complete extension audit workflow remains available separately.

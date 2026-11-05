@@ -189,5 +189,5 @@ export async function annotateFinding(root, run, finding, evidence, index) {
     .toFile(join(root, "annotated", `${basename}.png`));
   evidence.crop = `/evidence/${run.id}/crops/${basename}.png`;
   evidence.annotation = `/evidence/${run.id}/annotated/${basename}.png`;
-  evidence.cropBounds = undefined;
+  delete evidence.cropBounds;
 }

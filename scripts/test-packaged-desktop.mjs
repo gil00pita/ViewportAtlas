@@ -7,7 +7,7 @@ const executable = process.platform === "darwin"
   ? join(folder, "Viewport Atlas.app", "Contents", "MacOS", "viewport-atlas")
   : join(folder, process.platform === "win32" ? "viewport-atlas.exe" : "viewport-atlas");
 await access(executable);
-const child = spawn(process.execPath, ["--test", "tests/desktop.integration.mjs"], {
+const child = spawn(process.execPath, ["--test", ...(process.env.ATLAS_DESKTOP_TEST_PATTERN ? ["--test-name-pattern", process.env.ATLAS_DESKTOP_TEST_PATTERN] : []), "tests/desktop.integration.mjs"], {
   stdio: "inherit", env: { ...process.env, ATLAS_DESKTOP_EXECUTABLE: executable },
 });
 child.on("error", (error) => { console.error(error.message); process.exitCode = 1; });
