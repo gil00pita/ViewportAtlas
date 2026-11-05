@@ -476,15 +476,15 @@ export class BrowserWorkspace {
     for (const entry of this.views.values()) {
       const bounds = entry.bounds;
       const fits = bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= width + 2 && bounds.y + bounds.height <= height + 2;
-      // macOS can stop submitting screenshot surfaces for a hidden native view.
+      // Hidden native views can stop submitting screenshot surfaces.
       // Keep it painting outside the clipped content area only during capture.
-      const painting = this.capturing && process.platform === "darwin" && bounds;
+      const painting = this.capturing && bounds;
       if (bounds) entry.view.setBounds(this.captureBounds(entry));
       entry.view.setVisible(Boolean(painting || (visible && this.presentationVisible !== false && !this.capturing && fits)));
     }
   }
   captureBounds(entry) {
-    return this.capturing && process.platform === "darwin" ? { ...entry.bounds, x: -entry.bounds.width - 20 } : entry.bounds;
+    return this.capturing ? { ...entry.bounds, x: -entry.bounds.width - 20 } : entry.bounds;
   }
   setPresentation(visible) {
     if (typeof visible !== "boolean") throw new Error("Invalid browser presentation state.");
