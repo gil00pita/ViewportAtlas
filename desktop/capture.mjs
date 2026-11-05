@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { newRun, redactUrl } from "../companion/core.mjs";
 import { DEFAULT_MASKS, writeCapture } from "../companion/capture.mjs";
 import { generatePdf } from "../companion/pdf.mjs";
-import { pageCommand, captureScreenshot } from "./cdp.mjs";
+import { pageCommand } from "./cdp.mjs";
 
 export async function captureWorkspace(workspace, destination) {
   await workspace.queue;
@@ -64,8 +64,7 @@ export async function captureWorkspace(workspace, destination) {
         const actual = overlay.result.value;
         if (overlay.exceptionDetails || actual?.width !== entry.device.width || actual?.height !== entry.device.height || actual?.density !== 2)
           throw new Error("Browser viewport dimensions do not match the requested capture.");
-        const shot = await captureScreenshot(entry, { format: "png", captureBeyondViewport: false,
-          clip: { x: actual.x, y: actual.y, width: entry.device.width, height: entry.device.height, scale: 1 } }, { timeout: 20000 });
+        const shot = await pageCommand(entry, "Page.captureScreenshot", { format: "png", captureBeyondViewport: false }, { timeout: 20000 });
         run.screenshots.push(await writeCapture(root, run.id, entry.device.id, {
           buffer: Buffer.from(shot.data, "base64"), width: entry.device.width, height: entry.device.height,
           truncated: false, conditions: { deviceScaleFactor: 2 },
