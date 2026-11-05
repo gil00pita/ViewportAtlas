@@ -648,8 +648,9 @@ test("project sessions isolate sign-ins, clear-login controls, history and tempo
 test('a late blur from the previous view preserves the active source and keyboard focus',async()=>{
   await window.evaluate(url=>window.atlasDesktop.navigate(url),url);
   await click(views[0],'input[name="name"]');
+  await until(()=>window.evaluate(()=>window.atlasDesktop.state()),state=>state.source==='phone'&&state.pending===0,'Initial source focus was not acknowledged');
   await click(views[2],'input[name="name"]');
-  assert.equal((await window.evaluate(()=>window.atlasDesktop.state())).source,'desktop');
+  await until(()=>window.evaluate(()=>window.atlasDesktop.state()),state=>state.source==='desktop'&&state.pending===0,'New source focus was not acknowledged');
   await inspect(views[0],'document.querySelector("input[name=name]").blur();new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   await until(()=>window.evaluate(()=>window.atlasDesktop.state()),state=>state.pending===0);
   assert.equal((await window.evaluate(()=>window.atlasDesktop.state())).source,'desktop','Blur incorrectly claimed source ownership');
