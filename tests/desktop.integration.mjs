@@ -73,9 +73,12 @@ async function click(id, selector) {
     const wc = webContents.fromId(id);
     const view = BrowserWindow.getAllWindows()[0].contentView.children.find((view) => view.webContents?.id === id);
     wc.focus();
-    const point = await wc.executeJavaScript(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); el.scrollIntoView({block:'center'}); const rect = el.getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, width: innerWidth }; })()`);
+    const point = await wc.executeJavaScript(`(async () => { const el = document.querySelector(${JSON.stringify(selector)}); el.scrollIntoView({block:'center'}); await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); const rect = el.getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, width: innerWidth }; })()`);
     const scale = view.getBounds().width / point.width;
+    const previousUrl=wc.getURL();
     for (const type of ["mouseDown", "mouseUp"]) wc.sendInputEvent({ type, x: Math.round(point.x * scale), y: Math.round(point.y * scale), button: "left", clickCount: 1 });
+    try { await wc.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))'); }
+    catch(error){if(!/WebFrame was removed|context.*destroyed/i.test(error.message)||(!wc.isLoadingMainFrame()&&wc.getURL()===previousUrl))throw error;}
   }, { id, selector });
   await until(() => window.evaluate(() => window.atlasDesktop.state()), state => state.pending === 0, 'Control interaction was not acknowledged');
 }
@@ -318,7 +321,9 @@ test("IME commits, responsive menus, open-shadow input, hover, Escape and DOM dr
   await until(()=>Promise.all(views.map(id=>inspect(id,'Boolean(document.querySelector("[role=dialog]"))'))),[false,false,false]);
   await until(()=>window.evaluate(()=>window.atlasDesktop.state()),state=>state.pending===0,'Escape was not acknowledged before hover');
   await electron.evaluate(async({webContents,BrowserWindow},id)=>{
-    const wc=webContents.fromId(id);const rect=await wc.executeJavaScript('(()=>{const e=document.querySelector("#hover-control");e.scrollIntoView({block:"center"});const r=e.getBoundingClientRect();return {x:r.x+5,y:r.y+5}})()');
+    const wc=webContents.fromId(id);
+    wc.sendInputEvent({type:'mouseMove',x:0,y:0});
+    const rect=await wc.executeJavaScript('(async()=>{const e=document.querySelector("#hover-control");e.scrollIntoView({block:"center"});await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const r=e.getBoundingClientRect();return {x:r.x+5,y:r.y+5}})()');
     const view=BrowserWindow.getAllWindows()[0].contentView.children.find(v=>v.webContents?.id===id);const scale=view.getBounds().width/await wc.executeJavaScript('innerWidth');
     wc.sendInputEvent({type:'mouseMove',x:Math.round(rect.x*scale),y:Math.round(rect.y*scale)});
   },views[0]);
