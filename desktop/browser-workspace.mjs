@@ -264,8 +264,10 @@ export class BrowserWorkspace {
     }
     await this.ready(entry);
     if (action.type === "key") {
-      await pageCommand(entry, "Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
-      await pageCommand(entry, "Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+      await this.nativeInput(entry, async () => {
+        await pageCommand(entry, "Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+        await pageCommand(entry, "Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+      });
       return { ok: true };
     }
     const mapping = this.mappings.find(m => m.viewId === entry.device.id && m.source === (action.target?.testId || action.target?.id || action.target?.href));
@@ -286,8 +288,17 @@ export class BrowserWorkspace {
         } while (Date.now() < deadline);
       }
     }
-    if (action.type === "hover" && result?.ok) wc.sendInputEvent({ type: "mouseMove", x: Math.round(result.x * entry.scale), y: Math.round(result.y * entry.scale) });
+    if (action.type === "hover" && result?.ok) await this.nativeInput(entry, () => wc.sendInputEvent({ type: "mouseMove", x: Math.round(result.x * entry.scale), y: Math.round(result.y * entry.scale) }));
     return result;
+  }
+
+  async nativeInput(entry, apply) {
+    await this.run(entry, 'globalThis.__atlasSync.applying = true');
+    try { await apply(); }
+    finally {
+      // Native input acknowledgements can precede trusted DOM events.
+      await this.run(entry, 'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => { globalThis.__atlasSync.applying = false; resolve(); })))');
+    }
   }
 
   async run(entry, expression) {

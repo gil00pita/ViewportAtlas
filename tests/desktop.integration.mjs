@@ -48,6 +48,12 @@ async function launch() {
     .filter((view) => view.webContents)
     .map((view) => view.webContents.id));
   assert.equal(views.length, 3);
+  await until(async()=>{
+    const slots=await window.locator('[data-browser-slot]').evaluateAll(slots=>slots.map(slot=>slot.getBoundingClientRect().toJSON()));
+    const bounds=await electron.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].contentView.children.filter(view=>view.webContents).map(view=>view.getBounds()));
+    return slots.length===3&&slots.every((slot,index)=>['x','y','width','height'].every(key=>Math.abs(slot[key]-bounds[index][key])<=2)&&bounds[index].width>1);
+  },true,'Native browser layout did not match the workspace slots');
+  await Promise.all(views.map(id=>inspect(id,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')));
   const state = await window.evaluate(() => window.atlasDesktop.state());
   assert((await Promise.all(views.map(id => inspect(id, 'location.href')))).every(url => url === state.url), 'Startup announced ready before its initial navigation completed');
   if (process.env.CI) console.log('Desktop display:', await electron.evaluate(({screen,BrowserWindow})=>({displayScale:screen.getDisplayMatching(BrowserWindow.getAllWindows()[0].getBounds()).scaleFactor,window:BrowserWindow.getAllWindows()[0].getContentSize()})));
@@ -649,6 +655,34 @@ test("project sessions isolate sign-ins, clear-login controls, history and tempo
   await launch();
   const recovered=await window.evaluate(()=>window.atlasDesktop.review('/flows'));
   assert.equal(recovered.recording,null);assert.equal(recovered.plans.find(plan=>plan.id===recording.selectedId).interruption.reason,'app_restarted');
+});
+
+test('mirrored Escape commands never claim interaction source ownership',async()=>{
+  await window.evaluate(url=>window.atlasDesktop.navigate(url),url);
+  await click(views[0],'input[name="name"]');
+  await until(()=>window.evaluate(()=>window.atlasDesktop.state()),state=>state.source==='phone'&&state.pending===0);
+  // Reproduce a follower's protocol notification arriving after its input acknowledgement.
+  await electron.evaluate(({webContents},ids)=>{
+    globalThis.__atlasDelayedKeyEmitters=ids.slice(1).map(id=>{
+      const debuggerApi=webContents.fromId(id).debugger,emit=debuggerApi.emit;
+      debuggerApi.emit=function(...args){
+        if(args[0]==='message'&&args[2]==='Runtime.bindingCalled'&&JSON.parse(args[3].payload).type==='key'){
+          setTimeout(()=>emit.apply(this,args),40);return true;
+        }
+        return emit.apply(this,args);
+      };
+      return {debuggerApi,emit};
+    });
+  },views);
+  try { for(let index=0;index<6;index++){
+    await electron.evaluate(async({webContents},ids)=>{
+      for(const type of ['keyDown','keyUp'])webContents.fromId(ids[0]).sendInputEvent({type,keyCode:'Escape'});
+      await Promise.all(ids.map(id=>webContents.fromId(id).executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))')));
+    },views);
+    const state=await until(()=>window.evaluate(()=>window.atlasDesktop.state()),state=>state.pending===0);
+    assert.equal(state.paused,false,state.problem);
+    assert.equal(state.source,'phone','A mirrored key event claimed source ownership');
+  }}finally{await electron.evaluate(()=>{for(const {debuggerApi,emit} of globalThis.__atlasDelayedKeyEmitters)debuggerApi.emit=emit;delete globalThis.__atlasDelayedKeyEmitters;});}
 });
 
 test('a late blur from the previous view preserves the active source and keyboard focus',async()=>{
