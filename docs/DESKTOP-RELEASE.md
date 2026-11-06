@@ -29,7 +29,7 @@ The workflow writes the Windows certificate path to `WINDOWS_CERTIFICATE_FILE`; 
 
 ## Release workflow
 
-`.github/workflows/desktop.yml` builds unsigned previews and exercises source, packaged, and installed applications on Apple silicon Mac, Intel Mac, and Windows x64. `.github/workflows/release.yml` performs the signed equivalent, including Apple notarization and signature verification. Both workflows need successful platform execution before support is treated as verified.
+`.github/workflows/desktop.yml` builds unsigned previews and exercises source, packaged, and installed applications on Apple silicon Mac, Intel Mac, and Windows x64. `.github/workflows/release.yml` performs the signed equivalent, including Apple notarization and signature verification. Both workflows also run `npm test` in a Linux job with Playwright Chromium and its system dependencies installed; signed builds wait for that job to pass. Both workflows need successful platform execution before support is treated as verified.
 
 1. Finish the platform and manual release gates below. Set the package version and matching lockfile version.
 2. Push a matching `v<package version>` tag when ready to run release CI. The workflow also supports a manual signed artifact build without publishing a release.

@@ -10,8 +10,12 @@ The desktop implementation includes live responsive browsing, shared audit/revie
 
 ```sh
 npm install
-npm run desktop
+npm start
 ```
+
+`npm start` builds and launches the desktop app; `npm run desktop` remains an alias. `npm run build` produces the desktop renderer in `dist/desktop`.
+
+For development, run `npm run dev` (or `npm run dev:desktop`). It watches renderer, desktop runtime, shared companion, and public asset files, rebuilds the renderer, and restarts Electron after successful builds. Restarts discard unsaved page state and interrupt active recordings or audits. Build errors appear in the terminal; fixing them resumes the loop. Run `npm run typecheck` separately for TypeScript diagnostics. Restart the command after changing Vite configuration. Press Ctrl+C to stop the watcher and Electron.
 
 The app bundles Electron's Chromium runtime and opens three real browser views (393 × 852, 820 × 1180, and 1440 × 900). It runs without the extension, Native Messaging registration, the loopback companion, or a separate Playwright browser installation. Development requires Node.js 22.13+; packaged apps include the runtime.
 
@@ -52,7 +56,7 @@ Requirements: Node.js 22.13+, npm, and macOS, Linux, or Windows for standalone m
 ```sh
 npm install
 npm run install:browser
-npm run dev
+npm run dev:web
 ```
 
 Open **http://127.0.0.1:4318**. The labeled Offgrid example is a real responsive HTML page rendered in Chromium, not a collection of mock screenshots. Enter another HTTP(S) URL to inspect it. No account or AI credentials are needed for browser checks.
@@ -60,15 +64,15 @@ Open **http://127.0.0.1:4318**. The labeled Offgrid example is a real responsive
 For a production build:
 
 ```sh
-npm run build
-npm start
+npm run build:web
+npm run start:web
 ```
 
-The app is served on loopback only. The companion and development frontend share port 4318. `dist/web` is the built workspace and `dist/extension` is the unpacked extension.
+The app is served on loopback only. The companion and development frontend share port 4318. `dist/web` is the built workspace. `npm run build:extension` builds the web workspace and the unpacked extension in `dist/extension`.
 
 ## Install the Chrome extension
 
-1. Run `npm run build`.
+1. Run `npm run build:extension`.
 2. Open `chrome://extensions`, enable Developer mode, and choose **Load unpacked → dist/extension**.
 3. Copy the extension's ID, then run:
 
@@ -183,11 +187,13 @@ Environment options:
 
 ## Miro and Confluence
 
-Set a Miro OAuth/developer token with `boards:read` and `boards:write` in the companion environment, then restart:
+Set a Miro OAuth/developer token with `boards:read` and `boards:write` in the app's environment, then restart. For desktop:
 
 ```sh
 MIRO_ACCESS_TOKEN='your-token' npm start
 ```
+
+For the legacy web/extension companion, use `npm run start:web` instead.
 
 Use **Export report → Miro**, choose a board, inspect the object counts, and explicitly export. The integration uses Miro REST v2 to list boards and create device frames, uploaded raster images, editable sticky notes, annotation rectangles, and connectors. Screenshot uploads are encoded as JPEG under Miro's 6 MB resource limit. A failure remains visible; local PDFs and evidence remain usable.
 
@@ -201,9 +207,13 @@ A portable JSON file is not a native Miro import. Screenshots do not become edit
 npm test
 npm run typecheck
 npm run build
-npm run test:extension
+npm run test:desktop
 npm audit
 ```
+
+`npm test` includes core desktop and companion regressions and requires `npm run install:browser` once after installing dependencies. The desktop Electron suite uses its bundled browser. Both preview and signed-release CI run the core suite with Playwright Chromium installed; release packaging waits for it to pass.
+
+For the retained web/extension workflow, run `npm run test:extension`. It rebuilds the web workspace and extension before running its integration checks, and requires the Playwright browser installation too. Packaged and installed desktop checks require artifacts from `npm run package:desktop` and `npm run make:desktop`, respectively.
 
 The tests use real Chromium for viewport dimensions, CSP/X-Frame-Options restrictions, responsive semantic matching, ambiguous/hidden targets, SPA query/hash navigation, shared cookies, password protection, prevention of duplicated purchases, screenshot masking and truncation, prepared state, crop coordinate mapping, real axe findings, PDF output, and cancellation. Additional tests cover structured schemas, path containment, URL redaction, history comparison, native-message framing, authenticated loopback requests, and Miro retry ledgers. Miro transport is stubbed **only in unit tests**; production uses the actual API. No mocked audit results ship in the app.
 
